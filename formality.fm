@@ -69,10 +69,6 @@ type Map <A: Type> {
 Set: Type
   Map(Unit)
 
-type MutSet {
-  new(value: Set)
-}
-
 type U16 {
   new(value: Word(16))
 }
@@ -927,24 +923,6 @@ Set.has(bits: Bits, set: Set): Bool
   case Map.get<Unit>(bits, set) {
     none: Bool.false,
     some: Bool.true,
-  }
-
-MutSet.empty: MutSet
-  MutSet.new(Set.new)
-
-MutSet.del(bits: Bits, set: MutSet): MutSet
-  case set {
-    new: MutSet.new(Set.del(bits, set.value))
-  }
-
-MutSet.set(bits: Bits, set: MutSet): MutSet
-  case set {
-    new: MutSet.new(Set.set(bits, set.value))
-  }
-
-MutSet.has(bits: Bits, set: MutSet): Bool
-  case set {
-    new: Set.has(bits, set.value)
   }
 
 Char.new(
@@ -3894,7 +3872,7 @@ Fm.Defs.report(defs: Fm.Defs): String
       new: case def.snd {
         new:
           let name = def.snd.name;
-          Debug.log<_>(String.concat("check ", name), (x)
+          //Debug.log<_>(String.concat("check ", name), (x)
             let term = def.snd.term;
             let type = def.snd.type;
             let check = Fm.Term.check(term, Maybe.some<_>(type), defs, [], Fm.MPath.nil);
@@ -3907,7 +3885,8 @@ Fm.Defs.report(defs: Fm.Defs): String
                   for error in check.errors with result:
                     String.flatten([result, "On ", name_str, ":\n", Fm.Error.show(error, defs), "\n"])
               }
-            })
+            }
+          //)
       }
     };
   case result {

@@ -6224,7 +6224,6 @@ module.exports = (function() {
         var _defs$3 = Fm$synth(_defs$2);
         return Fm$Defs$core(_defs$3)
     })());
-    var Debug$log = a0 => a1 => ((console.log(a0), a1()));
     var Maybe$bind = (_m$3 => (_f$4 => (() => {
         var self = _m$3;
         switch (self._) {
@@ -6955,35 +6954,33 @@ module.exports = (function() {
                                 var $1814 = self.done;
                                 return (() => {
                                     var _name$11 = $1811;
-                                    return ((console.log(("check " + _name$11)), (_x$12 => (() => {
-                                        var _term$13 = $1812;
-                                        var _type$14 = $1813;
-                                        var _check$15 = Fm$Term$check(_term$13)(Maybe$some(_type$14))(_defs$1)(List$nil)(Fm$MPath$nil);
-                                        return (() => {
-                                            var self = _check$15;
-                                            switch (self._) {
-                                                case 'Fm.Check.result':
-                                                    var $1815 = self.value;
-                                                    var $1816 = self.errors;
-                                                    return (() => {
-                                                        var self = $1816;
-                                                        switch (self._) {
-                                                            case 'List.nil':
-                                                                return _result$4;
-                                                            case 'List.cons':
-                                                                var $1817 = self.head;
-                                                                var $1818 = self.tail;
-                                                                return (() => {
-                                                                    var _name_str$20 = Fm$Name$show(_name$11);
-                                                                    var _type_str$21 = "<error>";
-                                                                    var _result$22 = (list_for($1816)(_result$4)((_error$22 => (_result$23 => String$flatten(List$cons(_result$23)(List$cons("On ")(List$cons(_name_str$20)(List$cons(":\u{a}")(List$cons(Fm$Error$show(_error$22)(_defs$1))(List$cons("\u{a}")(List$nil)))))))))));
-                                                                    return _result$22
-                                                                })();
-                                                        }
-                                                    })();
-                                            }
-                                        })()
-                                    })())()))
+                                    var _term$12 = $1812;
+                                    var _type$13 = $1813;
+                                    var _check$14 = Fm$Term$check(_term$12)(Maybe$some(_type$13))(_defs$1)(List$nil)(Fm$MPath$nil);
+                                    return (() => {
+                                        var self = _check$14;
+                                        switch (self._) {
+                                            case 'Fm.Check.result':
+                                                var $1815 = self.value;
+                                                var $1816 = self.errors;
+                                                return (() => {
+                                                    var self = $1816;
+                                                    switch (self._) {
+                                                        case 'List.nil':
+                                                            return _result$4;
+                                                        case 'List.cons':
+                                                            var $1817 = self.head;
+                                                            var $1818 = self.tail;
+                                                            return (() => {
+                                                                var _name_str$19 = Fm$Name$show(_name$11);
+                                                                var _type_str$20 = "<error>";
+                                                                var _result$21 = (list_for($1816)(_result$4)((_error$21 => (_result$22 => String$flatten(List$cons(_result$22)(List$cons("On ")(List$cons(_name_str$19)(List$cons(":\u{a}")(List$cons(Fm$Error$show(_error$21)(_defs$1))(List$cons("\u{a}")(List$nil)))))))))));
+                                                                return _result$21
+                                                            })();
+                                                    }
+                                                })();
+                                        }
+                                    })()
                                 })();
                         }
                     })();
@@ -7288,7 +7285,6 @@ module.exports = (function() {
         'Fm.Term.core': Fm$Term$core,
         'Fm.Defs.core': Fm$Defs$core,
         'Fm.to_core': Fm$to_core,
-        'Debug.log': Debug$log,
         'Maybe.bind': Maybe$bind,
         'Maybe.monad': Maybe$monad,
         'Fm.Term.show.as_nat.go': Fm$Term$show$as_nat$go,
