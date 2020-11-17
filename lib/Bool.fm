@@ -26,3 +26,6 @@ Bool.eql(a: Bool, b: Bool): Bool
     true: b,
     false: Bool.not(b),
   }
+
+fofo: String
+  String.concat("eae", "man")

@@ -781,6 +781,12 @@ List.flatten<A: Type>(xs: List(List(A))): List(A)
     cons: List.concat<_>(xs.head, List.flatten<_>(xs.tail))
   }
 
+List.is_empty<A: Type>(list: List(A)): Bool
+  case list {
+    nil: Bool.true,
+    cons: Bool.false,
+  }
+
 // Computes the length of the list.
 List.length<A: Type>(xs: List(A)): Nat
   List.length.go<_>(xs, 0)
@@ -907,6 +913,20 @@ Map.to_list.go<A: Type>(xs: Map(A), key: Bits, list: List(Pair(Bits,A))): List(P
       };
       let list1 = Map.to_list.go<_>(xs.lft, Bits.0(key), list0);
       let list2 = Map.to_list.go<_>(xs.rgt, Bits.1(key), list1);
+      list2
+  }
+
+Map.values<A: Type>(xs: Map(A)): List(A)
+  Map.values.go<A>(xs, List.nil<_>)
+
+Map.values.go<A: Type>(xs: Map(A), list: List(A)): List(A)
+  case xs {
+    new:
+      list,
+    tie: 
+      let list0 = case xs.val { none: list, some: List.cons<_>(xs.val.value, list) };
+      let list1 = Map.values.go<_>(xs.lft, list0);
+      let list2 = Map.values.go<_>(xs.rgt, list1);
       list2
   }
 
@@ -1401,6 +1421,14 @@ type Fm.Error {
     goal: Maybe(Fm.Term),
     context: Fm.Context,
   ),
+  // Waits for another term's type checking
+  waiting(
+    name: Fm.Name,
+  ),
+  // Error in a dependency
+  indirect(
+    name: Fm.Name,
+  ),
   // Patch the original term
   patch(
     path: Bits,
@@ -1425,13 +1453,21 @@ type Fm.Check<V: Type> {
   ),
 }
 
+// Status of a type-checking process
+type Fm.Status {
+  init,
+  wait,
+  done,
+  fail(errors: List(Fm.Error)),
+}
+
 // A top-level definition
 type Fm.Def {
   new(
     name: Fm.Name,
     term: Fm.Term,
     type: Fm.Term,
-    done: Bool,
+    stat: Fm.Status,
   ),
 }
 
@@ -1541,6 +1577,14 @@ Fm.Error.show(error: Fm.Error, defs: Fm.Defs): String
         "- Expected: ", expected, "\n",
         "- Detected: ", detected, "\n",
         "With context:\n", context,
+      ]),
+    waiting:
+      String.flatten([
+        "Waiting for '", error.name, "'."
+      ]),
+    indirect:
+      String.flatten([
+        "Error on dependency '", error.name, "'."
       ]),
     show_goal:
       let goal_name = String.flatten(["Goal ?", Fm.Name.show(error.name), ":\n"]);
@@ -2208,7 +2252,19 @@ Fm.Term.check(
     var infr = case term {
       ref: case Fm.get<_>(term.name, defs) as got {
         none: Fm.Check.result<_>(type, [Fm.Error.undefined_reference(term.name)]),
-        some: do Fm.Check { return case got.value { new: got.value.type }; },
+        some: case got.value {
+          new:
+            let ref_name = got.value.name;
+            let ref_type = got.value.type;
+            let ref_term = got.value.term;
+            let ref_stat = got.value.stat;
+            case ref_stat {
+              init: Fm.Check.result<_>(Maybe.some<_>(ref_type), [Fm.Error.waiting(ref_name)]),
+              wait: Fm.Check.result<_>(Maybe.some<_>(ref_type), []),
+              done: Fm.Check.result<_>(Maybe.some<_>(ref_type), []),
+              fail: Fm.Check.result<_>(Maybe.some<_>(ref_type), [Fm.Error.indirect(ref_name)]),
+            },
+        }
       },
       var: case List.at_last<_>(term.indx, ctx) as got {
         none: Fm.Check.result<_>(type, [Fm.Error.undefined_reference(term.name)]),
@@ -2329,75 +2385,106 @@ Fm.Term.check(
   }
 
 // SYNTH: Fixes a list of errors, if possible
-Fm.synth.fix(
+Fm.Synth.fix(
+  name: Fm.Name,
   term: Fm.Term,
   type: Fm.Term,
   defs: Fm.Defs,
   errs: List(Fm.Error),
-  fixs: Bool,
-): Maybe(Pair(Fm.Term, Fm.Term))
+  fixd: Bool,
+): Maybe(Fm.Defs)
   case errs {
     nil:
-      if fixs then
-        Maybe.some<_>({term, type})
+      if fixd then
+        let type = Fm.Term.bind([], (x) Bits.1(x), type);
+        let term = Fm.Term.bind([], (x) Bits.0(x), term);
+        let defs = Fm.set<_>(name, Fm.Def.new(name, term, type, Fm.Status.init), defs);
+        Maybe.some<_>(defs)
       else
         Maybe.none<_>,
-    cons: 
-      case errs.head {
-        patch: 
-          case errs.head.path {
-            nil: Maybe.none<_>, // shouldn't happen
-            0: // hole is on term
-              let patched_term = Fm.Term.patch_at(errs.head.path.pred, term, (x) errs.head.term);
-              Fm.synth.fix(patched_term, type, defs, errs.tail, Bool.true),
-            1: // hole is on type
-              let patched_type = Fm.Term.patch_at(errs.head.path.pred, type, (x) errs.head.term);
-              Fm.synth.fix(term, patched_type, defs, errs.tail, Bool.true),
-          },
-        // The error isn't fixable
-        _: Fm.synth.fix(term, type, defs, errs.tail, fixs),
-      }
-  }
-
-Fm.synth.one(name: Fm.Name, term: Fm.Term, type: Fm.Term, defs: Fm.Defs): Fm.Def
-  let checked = do Fm.Check {
-    var chk_type = Fm.Term.check(type, Maybe.some<_>(Fm.Term.typ), defs, [], Fm.MPath.1(Fm.MPath.nil));
-    var chk_term = Fm.Term.check(term, Maybe.some<_>(type), defs, [], Fm.MPath.0(Fm.MPath.nil));
-    return Unit.new;
-  };
-  case checked {
-    result: case checked.errors {
-      nil:
-        Fm.Def.new(name, term, type, Bool.true),
-      cons:
-        let fixed = Fm.synth.fix(term, type, defs, checked.errors, Bool.false);
-        case fixed {
-          none:
-            Fm.Def.new(name, term, type, Bool.true),
-          some:
-            case fixed.value {
-              new:
-                let term = Fm.Term.bind([], Fm.Path.0(Fm.Path.nil), fixed.value.fst);
-                let type = Fm.Term.bind([], Fm.Path.1(Fm.Path.nil), fixed.value.snd);
-                Fm.synth.one(name, term, type, defs),
-            }
-        }
+    cons: case errs.head {
+      waiting:
+        let defs = Fm.Synth.one(errs.head.name, defs);
+        Fm.Synth.fix(name, term, type, defs, errs.tail, Bool.true),
+      patch: 
+        case errs.head.path {
+          nil: // shouldn't happen
+            Maybe.none<_>,
+          0: // hole is on term
+            let term = Fm.Term.patch_at(errs.head.path.pred, term, (x) errs.head.term);
+            Fm.Synth.fix(name, term, type, defs, errs.tail, Bool.true),
+          1: // hole is on type
+            let type = Fm.Term.patch_at(errs.head.path.pred, type, (x) errs.head.term);
+            Fm.Synth.fix(name, term, type, defs, errs.tail, Bool.true),
+        },
+      // The error isn't fixable
+      _: Fm.Synth.fix(name, term, type, defs, errs.tail, fixd),
     }
   }
 
-// SYNTH: Checks the type of a core term, fixing repairable errors
-Fm.synth(defs: Fm.Defs): Fm.Defs
-  for def in Map.to_list<_>(defs) with defs:
+// Synths one defs
+Fm.Synth.one(name: Fm.Name, defs: Fm.Defs): Fm.Defs
+  case Fm.get<_>(name, defs) as got {
+    none: 
+      defs,
+    some: case got.value {
+      new:
+        let name = got.value.name;
+        let term = got.value.term;
+        let type = got.value.type;
+        let stat = got.value.stat;
+        //Debug.log<_>(String.flatten(["synth ", name, " ", case stat { init: "INIT", wait: "WAIT", done: "DONE", fail: "FAIL" }]), (x)
+        case stat {
+          init:
+            let defs = Fm.set<_>(name, Fm.Def.new(name, term, type, Fm.Status.wait), defs);
+            let checked = do Fm.Check {
+              var chk_type = Fm.Term.check(type, Maybe.some<_>(Fm.Term.typ), defs, [], Fm.MPath.1(Fm.MPath.nil));
+              var chk_term = Fm.Term.check(term, Maybe.some<_>(type), defs, [], Fm.MPath.0(Fm.MPath.nil));
+              return Unit.new;
+            };
+            case checked {
+              result:
+                if List.is_empty<_>(checked.errors) then
+                  let defs = Fm.set<_>(name, Fm.Def.new(name, term, type, Fm.Status.done), defs);
+                  //use skip = Debug.log<_>(String.flatten(["done: ", name]))
+                  defs
+                else
+                  let fixed = Fm.Synth.fix(name, term, type, defs, checked.errors, Bool.false);
+                  case fixed {
+                    none:
+                      let stat = Fm.Status.fail(checked.errors);
+                      let defs = Fm.set<_>(name, Fm.Def.new(name, term, type, stat), defs);
+                      //use skip = Debug.log<_>(String.flatten(["fail: ", name]))
+                      defs,
+                    some:
+                      //use skip = Debug.log<_>(String.flatten(["cont: ", name]))
+                      Fm.Synth.one(name, fixed.value),
+                  }
+            },
+          wait:
+            //use skip = Debug.log<_>(String.flatten(["wait ", name]))
+            defs,
+          done:
+            //use skip = Debug.log<_>(String.flatten(["done ", name]))
+            defs,
+          fail:
+            //use skip = Debug.log<_>(String.flatten(["fail ", name]))
+            defs,
+        }
+        //)
+    }
+  }
+
+// Synths all defs
+Fm.Synth.all(defs: Fm.Defs): Fm.Defs
+  for def in Map.values<_>(defs) with defs:
     case def {
-      new: case def.snd {
-        new:
-          let name = def.snd.name;
-          let term = def.snd.term;
-          let type = def.snd.type;
-          let done = def.snd.done;
-          let defn = Fm.synth.one(name, term, type, defs);
-          Fm.set<_>(name, defn, defs)
-      }
+      new: 
+        let name = def.name;
+        let term = def.term;
+        let type = def.type;
+        let stat = def.stat;
+        Fm.Synth.one(name, defs)
     }
 
 // Sugars
@@ -3302,7 +3389,7 @@ Fm.Parser.case.with: Parser(Fm.Def)
     var type = Fm.Parser.term;
     Fm.Parser.spaces_text("=");
     var term = Fm.Parser.term;
-    return Fm.Def.new(name, term, type, Bool.false);
+    return Fm.Def.new(name, term, type, Fm.Status.init);
   }
 
 // Parses a case statement of a case
@@ -3537,7 +3624,7 @@ Fm.Parser.definition: Parser(Fm.Def)
     let term = Fm.Parser.make_lambda(List.mapped<_>(args)<_>((x) case x { new: x.name }),term);
     let type = Fm.Term.bind([], (x) Bits.1(x), type);
     let term = Fm.Term.bind([], (x) Bits.0(x), term);
-    return Fm.Def.new(name, term, type, Bool.false);
+    return Fm.Def.new(name, term, type, Fm.Status.init);
   }
 
 // Parses many definitions
@@ -3557,7 +3644,7 @@ Fm.Parser.file.go(defs: Fm.Defs): Parser(Fm.Defs)
               let term = Fm.Term.bind([], (x) Bits.1(x), term);
               let type = Fm.Datatype.build_type(adt.value);
               let type = Fm.Term.bind([], (x) Bits.0(x), type);
-              let defs = Fm.set<_>(adt.value.name, Fm.Def.new(adt.value.name, term, type, Bool.false), defs);
+              let defs = Fm.set<_>(adt.value.name, Fm.Def.new(adt.value.name, term, type, Fm.Status.init), defs);
               let defs = List.fold<_>(adt.value.ctrs)<_>(defs, (ctr, defs)
                 let typ_name = adt.value.name;
                 let ctr_name = String.flatten([typ_name, Fm.Name.read("."), case ctr { new: ctr.name }]);
@@ -3565,7 +3652,7 @@ Fm.Parser.file.go(defs: Fm.Defs): Parser(Fm.Defs)
                 let ctr_term = Fm.Term.bind([], (x) Bits.1(x), ctr_term);
                 let ctr_type = Fm.Constructor.build_type(adt.value, ctr);
                 let ctr_type = Fm.Term.bind([], (x) Bits.0(x), ctr_type);
-                Fm.set<_>(ctr_name, Fm.Def.new(ctr_name, ctr_term, ctr_type, Bool.false), defs));
+                Fm.set<_>(ctr_name, Fm.Def.new(ctr_name, ctr_term, ctr_type, Fm.Status.init), defs));
               Fm.Parser.file.go(defs)
           },
           none: do Parser {
@@ -3828,7 +3915,7 @@ Fm.Comp.hs.defs(defs: Fm.Defs): String
   //"import GHC.Integer",
   //"_ins_bits = \\x-> x (1::Integer) (\\p-> shiftLInteger p 1#) (\\p-> orInteger 1 (shiftLInteger p 1#))",
   //"_eli_bits = \\x-> \\e o i-> if x == 1 then e else if testBitInteger x 0# then i (shiftRInteger x 1#) else o (shiftRInteger x 1#)",
-  let list = Map.to_list<_>(defs);
+  let list = Map.values<_>(defs);
   let code = String.join("\n", [
     "import Unsafe.Coerce",
     "import Data.Word",
@@ -3846,19 +3933,17 @@ Fm.Comp.hs.defs(defs: Fm.Defs): String
   ]);
   for def in list with code:
     case def {
-      new: case def.snd {
-        new:
-          let name = def.snd.name;
-          let line = case Fm.get<_>(name, Fm.Comp.hs.native_ops) as got {
-            none: 
-              let comp = Fm.Comp.compile(def.snd.term, Maybe.some<_>(def.snd.type), defs, []);
-              let body = case comp {none: "()", some: Fm.Comp.hs(comp.value)};
-              String.flatten(["_",Fm.Comp.hs.name(name)," = ",body]),
-            some:
-              got.value,
-          };
-          String.flatten([code, line, "\n"])
-      }
+      new: 
+        let name = def.name;
+        let line = case Fm.get<_>(name, Fm.Comp.hs.native_ops) as got {
+          none: 
+            let comp = Fm.Comp.compile(def.term, Maybe.some<_>(def.type), defs, []);
+            let body = case comp {none: "()", some: Fm.Comp.hs(comp.value)};
+            String.flatten(["_",Fm.Comp.hs.name(name)," = ",body]),
+          some:
+            got.value,
+        };
+        String.flatten([code, line, "\n"])
     }
 
 // Reports
@@ -3867,27 +3952,27 @@ Fm.Comp.hs.defs(defs: Fm.Defs): String
 // REPORT: Synths, checks and reports errors of a defs
 Fm.Defs.report(defs: Fm.Defs): String
   let result = "";
-  let result = for def in Map.to_list<_>(defs):
+  let result = for def in Map.values<_>(defs):
     case def {
-      new: case def.snd {
-        new:
-          let name = def.snd.name;
-          //Debug.log<_>(String.concat("check ", name), (x)
-            let term = def.snd.term;
-            let type = def.snd.type;
-            let check = Fm.Term.check(term, Maybe.some<_>(type), defs, [], Fm.MPath.nil);
-            case check {
-              result: case check.errors {
-                nil: result,
-                cons: 
-                  let name_str = Fm.Name.show(name);
-                  let type_str = "<error>";
-                  for error in check.errors with result:
-                    String.flatten([result, "On ", name_str, ":\n", Fm.Error.show(error, defs), "\n"])
-              }
-            }
-          //)
-      }
+      new: 
+        let name = def.name;
+        let term = def.term;
+        let type = def.type;
+        let stat = def.stat;
+        case stat {
+          init: result,
+          wait: result,
+          done: result,
+          fail: case stat.errors {
+            nil:
+              result,
+            cons: 
+              let name_str = Fm.Name.show(name);
+              let type_str = "<error>";
+              for error in stat.errors with result:
+                String.flatten([result, "On ", name_str, ":\n", Fm.Error.show(error, defs), "\n"])
+          }
+        }
     };
   case result {
     nil: "All terms check.",
@@ -3948,31 +4033,69 @@ Fm.Term.core(term: Fm.Term): String
 // Converts everything to FormCore
 Fm.Defs.core(defs: Fm.Defs): String
   let result = "";
-  for def in Map.to_list<_>(defs) with result:
+  for def in Map.values<_>(defs) with result:
     case def {
-      new: case def.snd {
-        new:
-          let name = def.snd.name;
-          let term = Fm.Term.core(def.snd.term);
-          let type = Fm.Term.core(def.snd.type);
-          String.flatten([result, name, " : ", type, " = ", term, ";\n"])
+      new: 
+        case def.stat {
+          done:
+            let name = def.name;
+            let term = Fm.Term.core(def.term);
+            let type = Fm.Term.core(def.type);
+            String.flatten([result, name, " : ", type, " = ", term, ";\n"]),
+          wait: result,
+          init: result,
+          fail: result,
       }
     }
 
 // API
 // ===
 
-Fm.to_core(code: String): String
+Fm.to_core_one(code: String, name: String): String
   let defs = Maybe.default<_>(Map.new<_>, Fm.Defs.read(code));
-  let defs = Fm.synth(defs);
+  let defs = Fm.Synth.one(name, defs);
   Fm.Defs.core(defs)
 
-Fm.report(code: String): String
+Fm.to_core_all(code: String): String
   let defs = Maybe.default<_>(Map.new<_>, Fm.Defs.read(code));
-  let defs = Fm.synth(defs);
+  let defs = Fm.Synth.all(defs);
+  Fm.Defs.core(defs)
+
+Fm.check_all(code: String): String
+  let defs = Maybe.default<_>(Map.new<_>, Fm.Defs.read(code));
+  let defs = Fm.Synth.all(defs);
+  Fm.Defs.report(defs)
+
+Fm.check_one(code: String, name: String): String
+  let defs = Maybe.default<_>(Map.new<_>, Fm.Defs.read(code));
+  let defs = Fm.Synth.one(name, defs);
   Fm.Defs.report(defs)
 
 Fm.exports: Unit
-  let Fm.to_core = Fm.to_core;
-  let Fm.report = Fm.report;
+  let _ = Fm.to_core_all;
+  let _ = Fm.to_core_one;
+  let _ = Fm.check_all;
+  let _ = Fm.check_one;
   Unit.new
+
+//formality: IO(Unit)
+  //do IO {
+    //let file = "formality.fm";
+    //var code = IO.get_file(file);
+    ////let code = "
+      ////type Bits {
+        ////nil,
+        ////0(pred: Bits),
+        ////1(pred: Bits),
+      ////}
+
+      ////Bits.inc(a: Bits): Bits
+        ////case a {
+          ////nil: Bits.1(Bits.nil),
+          ////0: Bits.1(a.pred),
+          ////1: Bits.0(Bits.inc(a.pred)),
+        ////}
+    ////";
+    ////IO.print(Fm.check_one(code, "foo"));
+    //IO.print(Fm.to_core_all(code));
+  //}

@@ -9,7 +9,8 @@ if (process.argv[2] === "--help" || process.argv[2] === "-h") {
   console.log("");
   console.log("Usage:");
   console.log("");
-  console.log("  fmfm            # type-checks");
+  console.log("  fmfm            # type-checks all local files");
+  console.log("  fmfm <name>     # type-checks one definition");
   console.log("  fmfm fmc <name> # compiles to FormCore");
   console.log("  fmfm js  <name> # compiles to JavaScript");
   console.log("  fmfm run <name> # runs with JavaScript");
@@ -38,25 +39,43 @@ function get_opt(opt) {
     return;
   }
 
+  // FormCore compilation
   if (has_opt("fmc")) {
-    console.log(fm["Fm.to_core"](code));
-  } else if (has_opt("js")) {
-    var name = get_opt("js") || "main";
+    var name = get_opt("--js");
+    if (name) {
+      console.log(fm["Fm.to_core_one"](code, name));
+    } else {
+      console.log(fm["Fm.to_core_all"](code));
+    }
+
+  // JavaScript compilation
+  } else if (has_opt("--js")) {
+    var name = get_opt("--js") || "main";
     try {
-      var fmcc = fm["Fm.to_core"](code);
+      var fmcc = fm["Fm.to_core_one"](code)(name);
       console.log(fmc_to_js.compile(fmcc, name, {}));
     } catch (e) {
+      console.log(e);
       console.log("Compilation error.");
     }
-  } else if (has_opt("run")) {
-    var name = get_opt("run") || "main";
+
+  // JavaScript execution
+  } else if (has_opt("--run")) {
+    var name = get_opt("--run") || "main";
     try {
-      var fmcc = fm["Fm.to_core"](code);
+      var fmcc = fm["Fm.to_core_one"](code)(name);
       eval(fmc_to_js.compile(fmcc, name, {}));
     } catch (e) {
       console.log("Compilation error.");
     }
+
+  // Type-Checking
   } else {
-    console.log(fm["Fm.report"](code));
+    var name = process.argv[2];
+    if (name) {
+      console.log(fm["Fm.check_one"](code)(name));
+    } else {
+      console.log(fm["Fm.check_all"](code));
+    }
   }
 })();
