@@ -4,7 +4,7 @@ var path = require("path");
 var {fmc_to_js, fmc} = require("formcore-lang"); // FormCore, which has the JS compiler
 
 console.log("Loading formality.js (last boostrap)...");
-var fm = require(path.join(__dirname, "../bin/js/formality.js"));
+var fm = require(path.join(__dirname, "js/formality.js"));
 
 console.log("Loading formality.fm (origin source)...");
 var formality_fm = fs.readFileSync(path.join(__dirname, "../formality.fm"), "utf8");
@@ -14,8 +14,8 @@ fs.writeFileSync(path.join(__dirname, "../formality.fmc"), formality_fmc);
 
 console.log("Compiling formality.fmc to formality.js...");
 var formality_js = fmc_to_js.compile(formality_fmc, "Fm.exports", {module: true});
-fs.writeFileSync(path.join(__dirname, "../bin/js/formality.js"), formality_js);
+fs.writeFileSync(path.join(__dirname, "js/formality.js"), formality_js);
 
 // TODO: avoid execSync
-execSync("js-beautify "+path.join(__dirname, "../bin/js/formality.js >> tmp.js"));
-execSync("mv tmp.js "+path.join(__dirname, "../bin/js/formality.js"));
+execSync("js-beautify "+path.join(__dirname, "js/formality.js >> tmp.js"));
+execSync("mv tmp.js "+path.join(__dirname, "js/formality.js"));

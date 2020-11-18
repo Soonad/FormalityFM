@@ -1518,6 +1518,13 @@ module.exports = (function() {
     var List$for = a0 => a1 => a2 => (list_for(a0)(a1)(a2));
     var Fm$Parser$application = (_func$1 => Monad$bind(Parser$monad)(Parser$first_of(List$cons(Parser$text("("))(List$cons(Parser$text("<"))(List$nil))))((_$2 => Monad$bind(Parser$monad)(Parser$many1(Fm$Parser$item(Fm$Parser$term)))((_args$3 => Monad$bind(Parser$monad)(Parser$first_of(List$cons(Parser$spaces_text(")"))(List$cons(Parser$spaces_text(">"))(List$nil))))((_$4 => Monad$pure(Parser$monad)((list_for(_args$3)(_func$1)((_x$5 => (_f$6 => Fm$Term$app(_f$6)(_x$5)))))))))))));
     var Fm$Parser$arrow = (_xtyp$1 => Monad$bind(Parser$monad)(Parser$spaces_text("->"))((_$2 => Monad$bind(Parser$monad)(Fm$Parser$term)((_body$3 => Monad$pure(Parser$monad)(Fm$Term$all(Bool$false)("")("")(_xtyp$1)((_s$4 => (_x$5 => _body$3)))))))));
+    var Fm$Parser$equality = (_val0$1 => Monad$bind(Parser$monad)(Parser$spaces_text("=="))((_$2 => Monad$bind(Parser$monad)(Fm$Parser$term)((_val1$3 => (() => {
+        var _term$4 = Fm$Term$ref("Equal");
+        var _term$5 = Fm$Term$app(_term$4)(Fm$Term$hol(Bits$nil));
+        var _term$6 = Fm$Term$app(_term$5)(_val0$1);
+        var _term$7 = Fm$Term$app(_term$6)(_val1$3);
+        return Monad$pure(Parser$monad)(_term$7)
+    })())))));
     var Fm$Term$ann = (_done$1 => (_term$2 => (_type$3 => ({
         _: 'Fm.Term.ann',
         'done': _done$1,
@@ -1534,7 +1541,7 @@ module.exports = (function() {
         while (true) {
             let [_term$1, _code$2] = arg;
             var R = (() => {
-                var _suffix_parser$3 = Parser$first_of(List$cons(Fm$Parser$application(_term$1))(List$cons(Fm$Parser$arrow(_term$1))(List$cons(Fm$Parser$annotation(_term$1))(List$nil))));
+                var _suffix_parser$3 = Parser$first_of(List$cons(Fm$Parser$application(_term$1))(List$cons(Fm$Parser$arrow(_term$1))(List$cons(Fm$Parser$equality(_term$1))(List$cons(Fm$Parser$annotation(_term$1))(List$nil)))));
                 return (() => {
                     var self = _suffix_parser$3(_code$2);
                     switch (self._) {
@@ -8096,6 +8103,7 @@ module.exports = (function() {
         'List.for': List$for,
         'Fm.Parser.application': Fm$Parser$application,
         'Fm.Parser.arrow': Fm$Parser$arrow,
+        'Fm.Parser.equality': Fm$Parser$equality,
         'Fm.Term.ann': Fm$Term$ann,
         'Fm.Parser.annotation': Fm$Parser$annotation,
         'Fm.Parser.suffix': Fm$Parser$suffix,

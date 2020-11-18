@@ -3592,6 +3592,19 @@ Fm.Parser.arrow(xtyp: Fm.Term): Parser(Fm.Term)
     return Fm.Term.all(Bool.false, "", "", xtyp, (s,x) body);
   }
 
+// Parses an equality: @a == b@
+Fm.Parser.equality(val0: Fm.Term): Parser(Fm.Term)
+  do Parser {
+    Parser.spaces_text("==");
+    var val1 = Fm.Parser.term;
+    let term = Fm.Term.ref("Equal");
+    let term = Fm.Term.app(term, Fm.Term.hol(Bits.nil));
+    let term = Fm.Term.app(term, val0);
+    let term = Fm.Term.app(term, val1);
+    return term;
+  }
+
+
 // Parses an annotation: @term :: type@
 Fm.Parser.annotation(term: Fm.Term): Parser(Fm.Term)
   do Parser {
@@ -3633,6 +3646,7 @@ Fm.Parser.suffix(term: Fm.Term): Parser(Fm.Term)
   let suffix_parser = Parser.first_of<_>([
     Fm.Parser.application(term),
     Fm.Parser.arrow(term),
+    Fm.Parser.equality(term),
     Fm.Parser.annotation(term),
   ]);
   case suffix_parser(code) as suffix_parsed {
