@@ -1,3 +1,0 @@
-type Sigma <A: Type, B: (x: A) Type> {
-  new(fst: A, snd: B(fst))
-}

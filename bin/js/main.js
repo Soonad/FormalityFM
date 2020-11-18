@@ -31,7 +31,7 @@ function get_opt(opt) {
 };
 
 (async () => {
-  var files = fs.readdirSync(".").filter(x => x.slice(-3) === ".fm");
+  var files = fs.readdirSync(".").filter(x => x.slice(-3) === ".fm" || x.slice(-5) === ".fmfm");
   var codes = await Promise.all(files.map(file => fs.promises.readFile(file)));
   var code = codes.join("\n");
   if (code.length === "0") {
@@ -72,7 +72,7 @@ function get_opt(opt) {
   // Type-Checking
   } else {
     var name = process.argv[2];
-    if (name) {
+    if (name && name.slice(-3) !== ".fm" && name.slice(-5) !== ".fmfm") {
       console.log(fm["Fm.check_one"](code)(name));
     } else {
       console.log(fm["Fm.check_all"](code));

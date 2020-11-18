@@ -1666,6 +1666,38 @@ Fm.Term.show.as_nat.go(term: Fm.Term): Maybe(Nat)
 Fm.Term.show.as_nat(term: Fm.Term): Maybe(String)
   Maybe.mapped<_>(Fm.Term.show.as_nat.go(term))<_>(Nat.show)
 
+Fm.Term.show.color(chr: Char): String
+  String.cons(Nat.to_u16(27),
+  String.cons('[',
+  String.cons(chr,
+  String.cons('m', String.nil))))
+
+Fm.Term.show.is_ref(term: Fm.Term, name: Fm.Name): Bool
+  case term {
+    ref: String.eql(name, term.name),
+    _: Bool.false,
+  }
+
+Fm.Term.show.app(term: Fm.Term, path: Maybe(Bits -> Bits), args: List(String)): String
+  case term {
+    app:
+      let argm = Fm.Term.show.go(term.argm, Fm.MPath.1(path));
+      Fm.Term.show.app(term.func, Fm.MPath.0(path), List.cons<_>(argm, args)),
+    _:
+      let arity = List.length<_>(args);
+      if Bool.and(Fm.Term.show.is_ref(term,"Equal"), Nat.eql(arity,3)) then
+        let func = Fm.Term.show.go(term, path);
+        let eq_lft = Maybe.default<_>("?", List.at<_>(1, args));
+        let eq_rgt = Maybe.default<_>("?", List.at<_>(2, args));
+        String.flatten([eq_lft, " == ", eq_rgt])
+      else
+        let func = Fm.Term.show.go(term, path);
+        let wrap = case func {nil: Bool.false, cons: U16.eql(func.head,'(')};
+        let args = String.join(",", args);
+        let func = if wrap then String.flatten(["(",func,")"]) else func;
+        String.flatten([func, "(", args, ")"]),
+  }
+
 // SHOW: Stringifies a term
 Fm.Term.show.go(term: Fm.Term, path: Maybe(Bits -> Bits)): String
   case Fm.Term.show.as_nat(term) as as_nat {
@@ -1679,7 +1711,7 @@ Fm.Term.show.go(term: Fm.Term, path: Maybe(Bits -> Bits)): String
           some: 
             let path_val = Bits.concat(Fm.Path.to_bits(path.value), Bits.1(Bits.nil));
             let path_str = Nat.show(Bits.to_nat(path_val));
-            String.flatten([name, "-", path_str]),
+            String.flatten([name, Fm.Term.show.color('2'), "-", path_str, Fm.Term.show.color('0')]),
         },
       var:
         Fm.Name.show(term.name),
@@ -1704,14 +1736,7 @@ Fm.Term.show.go(term: Fm.Term, path: Maybe(Bits -> Bits)): String
           term.body(Fm.Term.var(term.name, 0)),
           Fm.MPath.0(path));
         String.flatten(["(",name,") ",body]),
-      app:
-        let func = Fm.Term.show.go(term.func, Fm.MPath.0(path));
-        let argm = Fm.Term.show.go(term.argm, Fm.MPath.1(path));
-        let wrap = case func {nil: Bool.false, cons: U16.eql(func.head,'(')};
-        if wrap then
-          String.flatten(["(",func,")","(",argm,")"])
-        else
-          String.flatten([func,"(",argm,")"]),
+      app: Fm.Term.show.app(term, path, List.nil<_>),
       let:
         let name = Fm.Name.show(term.name);
         let expr = Fm.Term.show.go(term.expr, Fm.MPath.0(path));
@@ -1987,11 +2012,70 @@ Fm.Term.expand_at(path: Bits, term: Fm.Term, defs: Fm.Defs): Fm.Term
     _: term,
   })
 
+// Expands constructor applications for better pretty printing
+Fm.Term.expand_ct(term: Fm.Term, defs: Fm.Defs, arity: Nat): Fm.Term
+  case term {
+    ref: // TODO: support constructors generally, not hardcodedly
+      let expand = Bool.false;
+      let expand = Bool.or(Bool.and(String.eql(term.name, "Nat.succ"), Nat.gtn(arity, 1)), expand);
+      let expand = Bool.or(Bool.and(String.eql(term.name, "Nat.zero"), Nat.gtn(arity, 0)), expand);
+      if expand then
+        case Fm.get<_>(term.name, defs) as got {
+          none: Fm.Term.ref(term.name),
+          some: case got.value { new: got.value.term },
+        }
+      else
+        Fm.Term.ref(term.name),
+    var:
+      Fm.Term.var(term.name, term.indx),
+    typ:
+      Fm.Term.typ,
+    all: 
+      def xtyp = Fm.Term.expand_ct(term.xtyp, defs, 0);
+      def body = (s,x) Fm.Term.expand_ct(term.body(s,x), defs, 0);
+      Fm.Term.all(term.eras, term.self, term.name, xtyp, body),
+    lam:
+      def body = (x) Fm.Term.expand_ct(term.body(x), defs, 0);
+      Fm.Term.lam(term.name, body),
+    app:
+      def func = Fm.Term.expand_ct(term.func, defs, Nat.succ(arity));
+      def argm = Fm.Term.expand_ct(term.argm, defs, 0);
+      Fm.Term.app(func, argm),
+    let:
+      def expr = Fm.Term.expand_ct(term.expr, defs, 0);
+      def body = (x) Fm.Term.expand_ct(term.body(x), defs, 0);
+      Fm.Term.let(term.name, expr, body),
+    def:
+      def expr = Fm.Term.expand_ct(term.expr, defs, 0);
+      def body = (x) Fm.Term.expand_ct(term.body(x), defs, 0);
+      Fm.Term.def(term.name, expr, body),
+    ann:
+      def term = Fm.Term.expand_ct(term.term, defs, 0);
+      def type = Fm.Term.expand_ct(term.type, defs, 0);
+      Fm.Term.ann(term.done, term, type),
+    gol:
+      Fm.Term.gol(term.name, term.dref, term.verb),
+    hol:
+      Fm.Term.hol(term.path),
+    nat:
+      Fm.Term.nat(term.natx),
+    chr:
+      Fm.Term.chr(term.chrx),
+    str:
+      Fm.Term.str(term.strx),
+    cse:
+      term,
+  }
+
 // Expands a term for pretty printing
 Fm.Term.expand(dref: List(Bits), term: Fm.Term, defs: Fm.Defs): Fm.Term
   let term = Fm.Term.normalize(term, Map.new<_>);
   for path in dref with term:
-    Fm.Term.normalize(Fm.Term.expand_at(path, term, defs), Map.new<_>)
+    let term = Fm.Term.expand_at(path, term, defs);
+    let term = Fm.Term.normalize(term, Map.new<_>);
+    let term = Fm.Term.expand_ct(term, defs, 0);
+    let term = Fm.Term.normalize(term, Map.new<_>);
+    term
 
 // Equality
 // ========
@@ -3970,7 +4054,7 @@ Fm.Defs.report(defs: Fm.Defs): String
               let name_str = Fm.Name.show(name);
               let type_str = "<error>";
               for error in stat.errors with result:
-                String.flatten([result, "On ", name_str, ":\n", Fm.Error.show(error, defs), "\n"])
+                String.flatten([result, "On ", name_str, ":\n", Fm.Error.show(error, defs), "\n\n"])
           }
         }
     };
