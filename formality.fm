@@ -2019,6 +2019,8 @@ Fm.Term.expand_ct(term: Fm.Term, defs: Fm.Defs, arity: Nat): Fm.Term
       let expand = Bool.false;
       let expand = Bool.or(Bool.and(String.eql(term.name, "Nat.succ"), Nat.gtn(arity, 1)), expand);
       let expand = Bool.or(Bool.and(String.eql(term.name, "Nat.zero"), Nat.gtn(arity, 0)), expand);
+      let expand = Bool.or(Bool.and(String.eql(term.name, "Bool.true"), Nat.gtn(arity, 0)), expand);
+      let expand = Bool.or(Bool.and(String.eql(term.name, "Bool.false"), Nat.gtn(arity, 0)), expand);
       if expand then
         case Fm.get<_>(term.name, defs) as got {
           none: Fm.Term.ref(term.name),

@@ -7686,8 +7686,10 @@ module.exports = (function() {
                     var _expand$5 = Bool$false;
                     var _expand$6 = ((($1895 === "Nat.succ") && (_arity$3 > 1n)) || _expand$5);
                     var _expand$7 = ((($1895 === "Nat.zero") && (_arity$3 > 0n)) || _expand$6);
+                    var _expand$8 = ((($1895 === "Bool.true") && (_arity$3 > 0n)) || _expand$7);
+                    var _expand$9 = ((($1895 === "Bool.false") && (_arity$3 > 0n)) || _expand$8);
                     return (() => {
-                        var self = _expand$7;
+                        var self = _expand$9;
                         switch (self ? 'true' : 'false') {
                             case 'true':
                                 return (() => {
