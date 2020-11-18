@@ -1,0 +1,9 @@
+- Make case-of smarter
+- Make "case as" create a let for the "as" value
+- Do-notation not need the type name
+- Parser errors
+- Source location on errors
+- Check a whole file with `fmfm file.fm`
+- Implicit arguments
+- Show only first type error + hole errors, to avoid overwhelming user
+- JS Compiler

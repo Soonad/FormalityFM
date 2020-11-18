@@ -81,10 +81,10 @@ type String {
   cons(head: Char, tail: String),
 }
 
-type StringMap <A: Type> {
-  nil,
-  cons(key: String, val: A, tail: StringMap(A)),
-}
+//type StringMap <A: Type> {
+  //nil,
+  //cons(key: String, val: A, tail: StringMap(A)),
+//}
 
 type Monad <M: Type -> Type> {
   new(
@@ -446,13 +446,13 @@ Word.from_bits(size: Nat, bits: Bits): Word(size)
        0 : Word.0<size.pred>(Word.from_bits(size.pred, bits.pred)),
        1 : Word.1<size.pred>(Word.from_bits(size.pred, bits.pred))
     } : Word(Nat.succ(size.pred))
-  } : Word(size.self)
+  } : Word(size)
 
 Word.zero(size: Nat): Word(size)
   case size {
     zero: Word.nil,
     succ: Word.0<size.pred>(Word.zero(size.pred))
-  } : Word(size.self)
+  } : Word(size)
 
 Word.cmp.go<size: Nat>(a: Word(size), b: Word(size), c: Cmp): Cmp
   case a with b : Word(a.size) = b {
@@ -514,7 +514,7 @@ Word.trim<size: Nat>(new_size: Nat, word: Word(size)): Word(new_size)
        0 : Word.0<new_size.pred>(Word.trim<word.size>(new_size.pred, word.pred)),
        1 : Word.1<new_size.pred>(Word.trim<word.size>(new_size.pred, word.pred))
     }
-  } : Word(new_size.self)
+  } : Word(new_size)
 
 Word.adder<size: Nat>(a: Word(size), b: Word(size), c: Bool): Word(size)
   case a with b: Word(a.size) = b {
@@ -1016,56 +1016,56 @@ String.flatten.go(xs: List(String), res: String): String
 String.flatten(xs: List(String)): String
   String.flatten.go(xs, "")
 
-StringMap.new<A: Type>: StringMap(A)
-  StringMap.nil<A>
+//StringMap.new<A: Type>: StringMap(A)
+  //StringMap.nil<A>
 
-StringMap.set<A: Type>(key: String, val: A, map: StringMap(A)): StringMap(A)
-  case map {
-    nil:
-      StringMap.cons<A>(key, val, StringMap.nil<A>),
-    cons:
-      if String.eql(map.key, key) then
-        StringMap.cons<A>(key, val, map.tail)
-      else
-        StringMap.cons<A>(map.key, map.val, StringMap.set<A>(key, val, map.tail)),
-  }
+//StringMap.set<A: Type>(key: String, val: A, map: StringMap(A)): StringMap(A)
+  //case map {
+    //nil:
+      //StringMap.cons<A>(key, val, StringMap.nil<A>),
+    //cons:
+      //if String.eql(map.key, key) then
+        //StringMap.cons<A>(key, val, map.tail)
+      //else
+        //StringMap.cons<A>(map.key, map.val, StringMap.set<A>(key, val, map.tail)),
+  //}
 
-StringMap.get<A: Type>(key: String, map: StringMap(A)): Maybe(A)
-  case map {
-    nil:
-      Maybe.none<A>,
-    cons:
-      if String.eql(map.key, key) then
-        Maybe.some<A>(map.val)
-      else
-        StringMap.get<A>(key, map.tail)
-  }
+//StringMap.get<A: Type>(key: String, map: StringMap(A)): Maybe(A)
+  //case map {
+    //nil:
+      //Maybe.none<A>,
+    //cons:
+      //if String.eql(map.key, key) then
+        //Maybe.some<A>(map.val)
+      //else
+        //StringMap.get<A>(key, map.tail)
+  //}
 
-StringMap.to_list<A: Type>(map: StringMap(A)): List(Pair(String,A))
-  case map {
-    nil: List.nil<_>,
-    cons: List.cons<_>(Pair.new<_,_>(map.key,map.val), StringMap.to_list<_>(map.tail)),
-  }
+//StringMap.to_list<A: Type>(map: StringMap(A)): List(Pair(String,A))
+  //case map {
+    //nil: List.nil<_>,
+    //cons: List.cons<_>(Pair.new<_,_>(map.key,map.val), StringMap.to_list<_>(map.tail)),
+  //}
 
-StringMap.from_list<A: Type>(list: List(Pair(String,A))): StringMap(A)
-  case list {
-    nil: StringMap.nil<_>,
-    cons: case list.head {
-      new: StringMap.cons<_>(list.head.fst, list.head.snd, StringMap.from_list<A>(list.tail))
-    }
-  }
+//StringMap.from_list<A: Type>(list: List(Pair(String,A))): StringMap(A)
+  //case list {
+    //nil: StringMap.nil<_>,
+    //cons: case list.head {
+      //new: StringMap.cons<_>(list.head.fst, list.head.snd, StringMap.from_list<A>(list.tail))
+    //}
+  //}
 
-Vararg(n: Nat, A: Type, B: Type): Type
-  case n {
-    zero: B,
-    succ: (x: A) -> Vararg(n.pred, A, B),
-  }
+//Vararg(n: Nat, A: Type, B: Type): Type
+  //case n {
+    //zero: B,
+    //succ: (x: A) -> Vararg(n.pred, A, B),
+  //}
 
-Vararg.apply<A: Type, B: Type>(idx: Nat, fun: Vararg(idx, A, B), arg: Nat -> A): B
-  case idx with fun: Vararg(idx.self, A, B) = fun {
-    zero: fun,
-    succ: Vararg.apply<A,B>(idx.pred, fun(arg(idx)), arg),
-  }: B
+//Vararg.apply<A: Type, B: Type>(idx: Nat, fun: Vararg(idx, A, B), arg: Nat -> A): B
+  //case idx with fun: Vararg(idx, A, B) = fun {
+    //zero: fun,
+    //succ: Vararg.apply<A,B>(idx.pred, fun(arg(idx)), arg),
+  //}: B
 
 Monad.pure<M: Type -> Type>(m: Monad(M)): <A: Type> -> A -> M(A)
   case m {
@@ -2510,6 +2510,7 @@ Fm.Synth.fix(
 
 // Synths one defs
 Fm.Synth.one(name: Fm.Name, defs: Fm.Defs): Fm.Defs
+  //Debug.log<_>(String.flatten(["synth ",name]), (x) 
   case Fm.get<_>(name, defs) as got {
     none: 
       defs,
@@ -2560,6 +2561,7 @@ Fm.Synth.one(name: Fm.Name, defs: Fm.Defs): Fm.Defs
         //)
     }
   }
+  //)
 
 // Synths all defs
 Fm.Synth.all(defs: Fm.Defs): Fm.Defs
@@ -2713,7 +2715,11 @@ Fm.Term.desugar_cse.argument(
   case Fm.Term.reduce(type, defs) as type {
     all:
       def type = type.body(Fm.Term.var(type.self,0), Fm.Term.var(type.name,0));
-      def lam_name = String.flatten([name, Fm.Name.read("."), type.name]);
+      def lam_name =
+        if String.is_empty(type.name) then
+          name
+        else
+          String.flatten([name, ".", type.name]);
       def lam_body = (x) Fm.Term.desugar_cse.argument(name, wyth, type, body, defs);
       Fm.Term.lam(lam_name, lam_body),
     _: case wyth {
@@ -2791,7 +2797,7 @@ Fm.Datatype.build_term.motive.go(
             Fm.Term.app(slf, Fm.Term.ref(case var { new: var.name }));
           let slf = for var in type.inds:
             Fm.Term.app(slf, Fm.Term.ref(case var { new: var.name }));
-          Fm.Term.all(Bool.false, "", Fm.Name.read("self"), slf, (s,x) Fm.Term.typ)
+          Fm.Term.all(Bool.false, "", "", slf, (s,x) Fm.Term.typ)
       }
   }
 
@@ -4178,24 +4184,9 @@ Fm.exports: Unit
   let _ = Fm.check_one;
   Unit.new
 
-//formality: IO(Unit)
-  //do IO {
-    //let file = "formality.fm";
-    //var code = IO.get_file(file);
-    ////let code = "
-      ////type Bits {
-        ////nil,
-        ////0(pred: Bits),
-        ////1(pred: Bits),
-      ////}
-
-      ////Bits.inc(a: Bits): Bits
-        ////case a {
-          ////nil: Bits.1(Bits.nil),
-          ////0: Bits.1(a.pred),
-          ////1: Bits.0(Bits.inc(a.pred)),
-        ////}
-    ////";
-    ////IO.print(Fm.check_one(code, "foo"));
-    //IO.print(Fm.to_core_all(code));
-  //}
+formality: IO(Unit)
+  do IO {
+    let file = "formality.fm";
+    var code = IO.get_file(file);
+    IO.print(Fm.check_all(code));
+  }
