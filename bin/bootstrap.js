@@ -9,6 +9,7 @@ if (breaking) {
   // TODO: remove last line
   console.log("Using old Formality to generate formality.js");
   execSync("rm "+path.join(__dirname, "js/formality.js"));
+  execSync("rm "+path.join(__dirname, "js/tmp.js"));
   execSync("fmjs Fm.exports | js-beautify >> "+path.join(__dirname, "js/formality.js"));
 } else {
   console.log("Loading formality.js (last boostrap)...");

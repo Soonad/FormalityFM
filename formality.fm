@@ -94,8 +94,8 @@ type Monad <M: Type -> Type> {
 }
 
 type Parser.Reply <V: Type> {
-  error(code: String, err: String),
-  value(code: String, val: V),
+  error(idx: Nat, code: String, err: String),
+  value(idx: Nat, code: String, val: V),
 }
 
 type IO <A: Type> {
@@ -178,6 +178,12 @@ Nat.pred(n: Nat): Nat
   case n {
     zero: Nat.zero,
     succ: n.pred
+  }
+
+Nat.is_zero(n: Nat): Bool
+  case n {
+    zero: Bool.true,
+    succ: Bool.false,
   }
 
 Nat.apply<A: Type>(n: Nat, f: (x:A) A, x: A): A
@@ -277,7 +283,7 @@ Nat.mod(n: Nat, m: Nat): Nat
 Nat.double(n: Nat): Nat
   case n {
     zero: Nat.zero,
-    succ: Nat.succ(Nat.double(n.pred)),
+    succ: Nat.succ(Nat.succ(Nat.double(n.pred))),
   }
 
 // n >= m
@@ -713,6 +719,12 @@ Maybe.bind<A: Type, B: Type>(m: Maybe(A), f: A -> Maybe(B)): Maybe(B)
 Maybe.monad: Monad(Maybe)
   Monad.new<Maybe>(Maybe.bind, Maybe.some)
 
+Maybe.extract<A: Type>(m: Maybe(A))<B: Type>(a: B, f: A -> B): B
+  case m {
+    none: a,
+    some: f(m.value),
+  }
+
 Maybe.default<A: Type>(a: A, m: Maybe(A)): A
   case m {
     none: a,
@@ -739,6 +751,15 @@ Pair.fst<A: Type, B: Type>(pair: Pair(A, B)): A
 Pair.snd<A: Type, B: Type>(pair: Pair(A, B)): B
   case pair {
     new: pair.snd
+  }
+
+List.take<A: Type>(n: Nat, xs: List(A)): List(A)
+  case xs {
+    nil : List.nil<_>,
+    cons: case n {
+      zero: List.nil<_>,
+      succ: List.cons<_>(xs.head,List.take<_>(n.pred, xs.tail))
+    }
   }
 
 List.fold<A: Type>(list: List(A)): <P: Type> -> P -> (A -> P -> P) -> P
@@ -976,6 +997,17 @@ String.is_empty(str: String): Bool
     cons: Bool.false,
   }
 
+// Computes the length of the list.
+String.length(xs: String): Nat
+  String.length.go(xs, 0)
+
+// Computes the length of the list.
+String.length.go(xs: String, n: Nat): Nat
+  case xs {
+    nil : n,
+    cons: String.length.go(xs.tail, Nat.succ(n))
+  }
+
 String.concat(as: String, bs: String): String
   case as {
     nil: bs,
@@ -1015,6 +1047,28 @@ String.flatten.go(xs: List(String), res: String): String
 
 String.flatten(xs: List(String)): String
   String.flatten.go(xs, "")
+
+// Reverse the order of the characters of the string
+String.reverse(xs: String) : String
+  String.reverse.go(xs,String.nil)
+
+String.reverse.go(xs: String, res: String): String
+  case xs {
+    nil: res,
+    cons: String.reverse.go(xs.tail,String.cons(xs.head,res)),
+  }
+
+String.pad_left(size: Nat, chr: Char, str: String): String
+  String.reverse(String.pad_right(size, chr, String.reverse(str)))
+
+String.pad_right(size: Nat, chr: Char, str: String): String
+  case size {
+    zero: str,
+    succ: case str {
+      nil: String.cons(chr, String.pad_right(size.pred, chr, "")),
+      cons: String.cons(str.head, String.pad_right(size.pred, chr, str.tail)),
+    }
+  }
 
 //StringMap.new<A: Type>: StringMap(A)
   //StringMap.nil<A>
@@ -1109,67 +1163,75 @@ IO.prompt(text: String): IO(String)
 
 // A parser is a function that receives a string and returns a reply
 Parser(V: Type): Type
-  String -> Parser.Reply(V)
+  Nat -> String -> Parser.Reply(V)
+
+type Parser.ErrorAt {
+  new(idx: Nat, code: String, err: String)
+}
 
 // Parser monadic binder
 Parser.bind<A: Type, B: Type>(parse: Parser(A), next: A -> Parser(B)): Parser(B)
-  (code) case parse(code) as reply {
-    error: Parser.Reply.error<B>(reply.code, reply.err),
-    value: next(reply.val, reply.code),
+  (idx,code) case parse(idx,code) as reply {
+    error: Parser.Reply.error<B>(reply.idx, reply.code, reply.err),
+    value: next(reply.val, reply.idx, reply.code),
   }
 
 // Parser monadic injection
 Parser.pure<V: Type>(value: V): Parser(V)
-  (code) Parser.Reply.value<V>(code, value)
+  (idx,code) Parser.Reply.value<V>(idx, code, value)
 
 // Perser monad
 Parser.monad: Monad(Parser)
   Monad.new<Parser>(Parser.bind, Parser.pure)
 
+// Throws an error
+Parser.fail<V: Type>(error: String): Parser(V)
+  (idx,code) Parser.Reply.error<V>(idx, code, error)
+
 // Consumes a specific text, returns the remaining code
 Parser.text.go(text: String): Parser(Unit)
-  (code) case text {
+  (idx,code) case text {
     nil:
-      Parser.Reply.value<Unit>(code, Unit.new),
+      Parser.Reply.value<Unit>(idx, code, Unit.new),
     cons: case code {
       nil:
         let error = String.flatten(["Expected '", text, "', found end of file."]);
-        Parser.Reply.error<Unit>(code, error)
+        Parser.Reply.error<Unit>(idx, code, error)
       cons:
         if U16.eql(text.head, code.head) then
-          Parser.text(text.tail, code.tail)
+          Parser.text(text.tail, Nat.succ(idx), code.tail)
         else
           let error = String.flatten(["Expected '", text, "', found '", String.cons(code.head, String.nil), "'."]);
-          Parser.Reply.error<Unit>(code, error)
+          Parser.Reply.error<Unit>(idx, code, error)
     }
   }
 
 Parser.text(text: String): Parser(Unit)
-  (code) case Parser.text.go(text, code) as reply {
-    error: Parser.Reply.error<Unit>(code, reply.err),
-    value: Parser.Reply.value<Unit>(reply.code, reply.val),
+  (idx,code) case Parser.text.go(text, idx,code) as reply {
+    error: Parser.Reply.error<Unit>(idx, code, reply.err),
+    value: Parser.Reply.value<Unit>(reply.idx, reply.code, reply.val),
   }
 
 Parser.one: Parser(Char)
-  (code) case code {
-    nil: Parser.Reply.error<Char>(code, "Unexpected end of file."),
-    cons: Parser.Reply.value<Char>(code.tail, code.head),
+  (idx,code) case code {
+    nil: Parser.Reply.error<Char>(idx, code, "Unexpected end of file."),
+    cons: Parser.Reply.value<Char>(Nat.succ(idx), code.tail, code.head),
   }
   
 Parser.if_not<A: Type>(a: Parser(Unit), b: Parser(A)): Parser(A)
-  (code) case a(code) {
-    error: b(code),
-    value: Parser.Reply.error<A>(code, "Prevented."),
+  (idx,code) case a(idx,code) {
+    error: b(idx,code),
+    value: Parser.Reply.error<A>(idx, code, "Prevented."),
   }
 
 // Repeats a parse until it fails, returns a list of results
 Parser.many<V: Type>(parser: Parser(V)): Parser(List(V))
   Parser.many.go<V>(parser, (x) x)
 
-Parser.many.go<V: Type>(parse: Parser(V), values: List(V) -> List(V), code: String): Parser.Reply(List(V))
-  case parse(code) as reply {
-    error: Parser.Reply.value<List(V)>(code, values([])),
-    value: Parser.many.go<V>(parse, (xs) values(List.cons<_>(reply.val, xs)), reply.code),
+Parser.many.go<V: Type>(parse: Parser(V), values: List(V) -> List(V), idx: Nat, code: String): Parser.Reply(List(V))
+  case parse(idx,code) as reply {
+    error: Parser.Reply.value<List(V)>(idx, code, values([])),
+    value: Parser.many.go<V>(parse, (xs) values(List.cons<_>(reply.val, xs)), reply.idx, reply.code),
   }
 
 // Same as Parser.many, but parses at least one instance
@@ -1180,27 +1242,86 @@ Parser.many1<V: Type>(parser: Parser(V)): Parser(List(V))
     return List.cons<V>(head, tail);
   }
 
-Parser.until<A: Type>(cond: Parser(Unit), parser: Parser(A)): Parser(List(A))
-  Parser.many<_>(Parser.if_not<_>(cond, parser))
+// Repeats a parse until it finds a delimiter. Better errors than Parser.many
+Parser.until<V: Type>(until: Parser(Unit), parse: Parser(V)): Parser(List(V))
+  Parser.until.go<V>(until, parse, (x) x)
+
+Parser.until.go<V: Type>(
+  until: Parser(Unit),
+  parse: Parser(V),
+  values: List(V) -> List(V),
+  idx: Nat,
+  code: String
+): Parser.Reply(List(V))
+  let until_reply = until(idx,code);
+  case until_reply {
+    error:
+      let reply = parse(idx,code);
+      case reply {
+        error:
+          Parser.Reply.error<List(V)>(reply.idx, reply.code, reply.err),
+        value:
+          def values = (xs) values(List.cons<V>(reply.val, xs));
+          Parser.until.go<V>(until, parse, values, reply.idx, reply.code)
+      }
+    value:
+      Parser.Reply.value<List(V)>(until_reply.idx, until_reply.code, values([])),
+  }
+
+// Same as Parser.many, but parses at least one instance
+Parser.until1<V: Type>(cond: Parser(Unit), parser: Parser(V)): Parser(List(V))
+  do Parser {
+    var head = parser;
+    var tail = Parser.until<V>(cond, parser);
+    return List.cons<V>(head, tail);
+  }
 
 // Parses an optional
 Parser.maybe<V: Type>(parse: Parser(V)): Parser(Maybe(V))
-  (code) case parse(code) as reply {
-    error: Parser.Reply.value<Maybe(V)>(code, Maybe.none<V>),
-    value: Parser.Reply.value<Maybe(V)>(reply.code, Maybe.some<V>(reply.val)),
+  (idx,code) case parse(idx,code) as reply {
+    error: Parser.Reply.value<Maybe(V)>(idx, code, Maybe.none<V>),
+    value: Parser.Reply.value<Maybe(V)>(reply.idx, reply.code, Maybe.some<V>(reply.val)),
+  }
+
+Parser.ErrorAt.combine(
+  a: Maybe(Parser.ErrorAt),
+  b: Maybe(Parser.ErrorAt),
+): Maybe(Parser.ErrorAt)
+  case a {
+    none: b,
+    some: case b {
+      none: a,
+      some: case a.value {
+        new: case b.value {
+          new: if Nat.gtn(a.value.idx, b.value.idx) then a else b
+        }
+      }
+    }
   }
 
 // Parses the first in a list
-Parser.first_of<A: Type>(pars: List(Parser(A))): Parser(A)
-  (code) case pars {
-    nil: Parser.Reply.error<_>(code, "No parse."),
+Parser.first_of.go<A: Type>(pars: List(Parser(A)), err: Maybe(Parser.ErrorAt)): Parser(A)
+  (idx,code) case pars {
+    nil: case err {
+      none: Parser.Reply.error<_>(idx, code, "No parse."),
+      some: case err.value {
+        new: Parser.Reply.error<_>(err.value.idx, err.value.code, err.value.err),
+      }
+    },
     cons:
-      let parsed = pars.head(code);
+      let parsed = pars.head(idx, code);
       case parsed {
-        error: Parser.first_of<_>(pars.tail, code),
-        value: Parser.Reply.value<_>(parsed.code, parsed.val),
+        error:
+          let neo = Maybe.some<_>(Parser.ErrorAt.new(parsed.idx, parsed.code, parsed.err));
+          let err = Parser.ErrorAt.combine(neo, err);
+          Parser.first_of.go<_>(pars.tail, err, idx, code),
+        value:
+          Parser.Reply.value<_>(parsed.idx, parsed.code, parsed.val),
       }
   }
+
+Parser.first_of<A: Type>(pars: List(Parser(A))): Parser(A)
+  Parser.first_of.go<A>(pars, Maybe.none<_>)
 
 // Skips whitespaces
 Parser.spaces: Parser(List(Unit))
@@ -1208,6 +1329,20 @@ Parser.spaces: Parser(List(Unit))
     Parser.text(" "),
     Parser.text("\n"),
   ]))
+
+// Checks if it is the end of the file
+Parser.is_eof: Parser(Bool)
+  (idx,code) case code {
+    nil: Parser.Reply.value<_>(idx, code, Bool.true),
+    cons: Parser.Reply.value<_>(idx, code, Bool.false),
+  }
+
+// Parses end of file
+Parser.eof: Parser(Unit)
+  (idx,code) case code {
+    nil: Parser.Reply.value<_>(idx, code, Unit.new),
+    cons: Parser.Reply.error<_>(idx, code, "Expected end-of-file."),
+  }
 
 // Parses spaces then a text
 Parser.spaces_text(text: String): Parser(Unit)
@@ -1218,32 +1353,33 @@ Parser.spaces_text(text: String): Parser(Unit)
 
 // Parses a character
 Parser.char_if(fun: Char -> Bool): Parser(Char)
-  (code) case code {
-    nil: Parser.Reply.error<_>(code, "No parse."),
+  (idx,code) case code {
+    nil: Parser.Reply.error<_>(idx, code, "No parse."),
     cons:
       if fun(code.head) then
-        Parser.Reply.value<_>(code.tail, code.head)
+        Parser.Reply.value<_>(Nat.succ(idx), code.tail, code.head)
       else
-        Parser.Reply.error<_>(code, "No parse."),
+        Parser.Reply.error<_>(idx, code, "No parse."),
   }
 
 // Parses a digit: [0123456789]
 Parser.digit: Parser(Nat)
-  (code) case code {
+  (idx, code) case code {
     nil:
-      Parser.Reply.error<_>(code, "No parse."),
+      Parser.Reply.error<_>(idx, code, "Not a digit."),
     cons:
-      if      U16.eql(code.head, '0') then Parser.Reply.value<_>(code.tail, 0)
-      else if U16.eql(code.head, '1') then Parser.Reply.value<_>(code.tail, 1)
-      else if U16.eql(code.head, '2') then Parser.Reply.value<_>(code.tail, 2)
-      else if U16.eql(code.head, '3') then Parser.Reply.value<_>(code.tail, 3)
-      else if U16.eql(code.head, '4') then Parser.Reply.value<_>(code.tail, 4)
-      else if U16.eql(code.head, '5') then Parser.Reply.value<_>(code.tail, 5)
-      else if U16.eql(code.head, '6') then Parser.Reply.value<_>(code.tail, 6)
-      else if U16.eql(code.head, '7') then Parser.Reply.value<_>(code.tail, 7)
-      else if U16.eql(code.head, '8') then Parser.Reply.value<_>(code.tail, 8)
-      else if U16.eql(code.head, '9') then Parser.Reply.value<_>(code.tail, 9)
-      else Parser.Reply.error<_>(code, "No parse."),
+      let sidx = Nat.succ(idx);
+      if      U16.eql(code.head, '0') then Parser.Reply.value<_>(sidx, code.tail, 0)
+      else if U16.eql(code.head, '1') then Parser.Reply.value<_>(sidx, code.tail, 1)
+      else if U16.eql(code.head, '2') then Parser.Reply.value<_>(sidx, code.tail, 2)
+      else if U16.eql(code.head, '3') then Parser.Reply.value<_>(sidx, code.tail, 3)
+      else if U16.eql(code.head, '4') then Parser.Reply.value<_>(sidx, code.tail, 4)
+      else if U16.eql(code.head, '5') then Parser.Reply.value<_>(sidx, code.tail, 5)
+      else if U16.eql(code.head, '6') then Parser.Reply.value<_>(sidx, code.tail, 6)
+      else if U16.eql(code.head, '7') then Parser.Reply.value<_>(sidx, code.tail, 7)
+      else if U16.eql(code.head, '8') then Parser.Reply.value<_>(sidx, code.tail, 8)
+      else if U16.eql(code.head, '9') then Parser.Reply.value<_>(sidx, code.tail, 9)
+      else Parser.Reply.error<_>(idx, code, "Not a digit."),
   }
 
 // Parses a natural number: 123
@@ -1255,15 +1391,19 @@ Parser.nat: Parser(Nat)
 
 // Gets the current code
 Parser.get_code: Parser(String)
-  (code) Parser.Reply.value<_>(code, code)
+  (idx, code) Parser.Reply.value<_>(idx, code, code)
+
+// Gets the current index
+Parser.get_index: Parser(Nat)
+  (idx, code) Parser.Reply.value<_>(idx, code, idx)
 
 // Gets the current code
 Parser.log_code: Parser(Unit)
-  (code) Debug.log<_>(code, (x) Parser.Reply.value<_>(code, Unit.new))
+  (idx, code) Debug.log<_>(code, (x) Parser.Reply.value<_>(idx, code, Unit.new))
 
 // Parses something
 Parser.log(str: String): Parser(Unit)
-  (code) Debug.log<_>(str, (x) Parser.Reply.value<_>(code, Unit.new))
+  (idx, code) Debug.log<_>(str, (x) Parser.Reply.value<_>(idx, code, Unit.new))
 
 // Logs to the console
 Debug.log<A: Type>(s: String, x: Unit -> A): A
@@ -1601,10 +1741,13 @@ Fm.Error.show(error: Fm.Error, defs: Fm.Defs): String
             "\n",
           ]),
       };
-      let with_ctxt = String.flatten([
-        "With ctxt:\n",
-        Fm.Context.show(error.context),
-      ]);
+      let with_ctxt = case error.context {
+        nil: "",
+        cons: String.flatten([
+          "With ctxt:\n",
+          Fm.Context.show(error.context),
+        ]),
+      };
       String.flatten([goal_name, with_type, with_ctxt]),
     patch:
       String.flatten([
@@ -1666,11 +1809,17 @@ Fm.Term.show.as_nat.go(term: Fm.Term): Maybe(Nat)
 Fm.Term.show.as_nat(term: Fm.Term): Maybe(String)
   Maybe.mapped<_>(Fm.Term.show.as_nat.go(term))<_>(Nat.show)
 
-Fm.Term.show.color(chr: Char): String
+String.color(col: String, str: String): String
   String.cons(Nat.to_u16(27),
   String.cons('[',
-  String.cons(chr,
-  String.cons('m', String.nil))))
+  String.concat(col,
+  String.cons('m', 
+  String.concat(str,
+  String.cons(Nat.to_u16(27),
+  String.cons('[',
+  String.cons('0',
+  String.cons('m', 
+  String.nil)))))))))
 
 Fm.Term.show.is_ref(term: Fm.Term, name: Fm.Name): Bool
   case term {
@@ -1711,7 +1860,7 @@ Fm.Term.show.go(term: Fm.Term, path: Maybe(Bits -> Bits)): String
           some: 
             let path_val = Bits.concat(Fm.Path.to_bits(path.value), Bits.1(Bits.nil));
             let path_str = Nat.show(Bits.to_nat(path_val));
-            String.flatten([name, Fm.Term.show.color('2'), "-", path_str, Fm.Term.show.color('0')]),
+            String.flatten([name, String.color("2", String.concat("-", path_str))]),
         },
       var:
         Fm.Name.show(term.name),
@@ -2635,7 +2784,6 @@ Fm.Term.desugar_app(func: Fm.Term, args: Map(Fm.Term), type: Fm.Term, defs: Fm.D
     _: func,
   }
 
-
 // Desugars the case-of expression (wraps lambdas around arguments)
 Fm.Term.desugar_cse(
   expr: Fm.Term,
@@ -3136,13 +3284,13 @@ Fm.Parser.spaces_text(text: String): Parser(Unit)
 
 // Parses a letter: @[a-zA-Z_.]@
 Fm.Parser.letter: Parser(Fm.Letter)
-  (code) case code {
-    nil: Parser.Reply.error<_>(code, "Unexpected eof."),
+  (idx, code) case code {
+    nil: Parser.Reply.error<_>(idx, code, "Unexpected eof."),
     cons:
       if Fm.Name.is_letter(code.head) then
-        Parser.Reply.value<_>(code.tail, code.head)
+        Parser.Reply.value<_>(Nat.succ(idx), code.tail, code.head)
       else
-        Parser.Reply.error<_>(code, "Expected letter."),
+        Parser.Reply.error<_>(idx, code, "Expected letter."),
   }
   
 // Parses a (possibly empty) name: @[a-zA-Z_.]*@
@@ -3166,18 +3314,24 @@ Fm.Parser.type: Parser(Fm.Term)
     return Fm.Term.typ;
   }
 
+// Parses a lambda (erased): @<name> body@
+Fm.Parser.lambda.erased: Parser(Fm.Term)
+  do Parser {
+    Parser.spaces_text("<");
+    var name = Parser.until1<_>(
+      Parser.spaces_text(">"),
+      Fm.Parser.item<_>(Fm.Parser.name1));
+    var body = Fm.Parser.term;
+    return Fm.Parser.make_lambda(name, body);
+  }
+
 // Parses a lambda: @(name) body@
 Fm.Parser.lambda: Parser(Fm.Term)
   do Parser {
-    Parser.first_of<_>([
-      Parser.spaces_text("("),
-      Parser.spaces_text("<"),
-    ]);
-    var name = Parser.many1<_>(Fm.Parser.item<_>(Fm.Parser.name1));
-    Parser.first_of<_>([
-      Parser.text(")"),
-      Parser.text(">"),
-    ]);
+    Parser.spaces_text("(");
+    var name = Parser.until1<_>(
+      Parser.spaces_text(")"),
+      Fm.Parser.item<_>(Fm.Parser.name1));
     var body = Fm.Parser.term;
     return Fm.Parser.make_lambda(name, body);
   }
@@ -3204,8 +3358,9 @@ Fm.Parser.name_term: Parser(Pair(Fm.Name, Fm.Term))
 Fm.Parser.binder.homo(eras: Bool): Parser(List(Fm.Binder))
   do Parser {
     Fm.Parser.spaces_text(if eras then "<" else "(");
-    var bind = Parser.many1<_>(Fm.Parser.item<_>(Fm.Parser.name_term));
-    Fm.Parser.spaces_text(if eras then ">" else ")");
+    var bind = Parser.until1<_>(
+      Fm.Parser.spaces_text(if eras then ">" else ")"),
+      Fm.Parser.item<_>(Fm.Parser.name_term));
     return List.mapped<_>(bind)<_>((pair) case pair {
       new: Fm.Binder.new(eras, pair.fst, pair.snd)
     });
@@ -3307,7 +3462,6 @@ Fm.Parser.string: Parser(Fm.Term)
     let quot = String.cons('"', String.nil);
     Parser.spaces_text(quot);
     var chrs = Parser.until<_>(Parser.text(quot), Fm.Parser.char.single);
-    Parser.text(quot);
     let strx = List.fold<_>(chrs)<_>(String.nil, String.cons);
     return Fm.Term.str(strx);
   }
@@ -3332,8 +3486,9 @@ Fm.Parser.pair: Parser(Fm.Term)
 Fm.Parser.list: Parser(Fm.Term)
   do Parser {
     Parser.spaces_text("[");
-    var vals = Parser.many<_>(Fm.Parser.item<_>(Fm.Parser.term));
-    Parser.spaces_text("]");
+    var vals = Parser.until<_>(
+      Parser.spaces_text("]"),
+      Fm.Parser.item<_>(Fm.Parser.term));
     return List.fold<_>(vals)<_>(
       Fm.Term.app(Fm.Term.ref(Fm.Name.read("List.nil")), Fm.Term.hol(Bits.nil)),
       (x,xs)
@@ -3516,9 +3671,8 @@ Fm.Parser.case: Parser(Fm.Term)
     };
     var with = Parser.many<_>(Fm.Parser.case.with);
     Fm.Parser.spaces_text("{");
-    var cses = Parser.many<_>(Fm.Parser.case.case);
+    var cses = Parser.until<_>(Fm.Parser.spaces_text("}"), Fm.Parser.case.case);
     let cses = Map.from_list<_,_>(Fm.Name.to_bits, cses);
-    Fm.Parser.spaces_text("}");
     var moti = Parser.maybe<_>(do Parser {
       Fm.Parser.spaces_text(":");
       Fm.Parser.term;
@@ -3565,7 +3719,11 @@ Fm.Parser.reference: Parser(Fm.Term)
   do Parser {
     Fm.Parser.spaces;
     var name = Fm.Parser.name1;
-    return Fm.Term.ref(name);
+    if String.eql(name, "case") then do Parser {
+      Parser.fail<_>("Reserved keyword.");
+    } else do Parser {
+      return Fm.Term.ref(name);
+    };
   }
 
 // Parses an optional comma after
@@ -3577,18 +3735,23 @@ Fm.Parser.item<V: Type>(parser: Parser(V)): Parser(V)
     return value;
   }
 
-// Parses an application: @func(argm0)@
+// Parses an application (erased): @func<argm0>@
+Fm.Parser.application.erased(func: Fm.Term): Parser(Fm.Term)
+  do Parser {
+    Parser.text("<");
+    var args = Parser.until1<_>(
+      Parser.spaces_text(">"),
+      Fm.Parser.item<_>(Fm.Parser.term));
+    return List.for<_>(args)<_>(func, (x,f) Fm.Term.app(f, x));
+  }
+
+// Parses an application: @func<argm0>@
 Fm.Parser.application(func: Fm.Term): Parser(Fm.Term)
   do Parser {
-    Parser.first_of<_>([
-      Parser.text("("),
-      Parser.text("<"),
-    ]);
-    var args = Parser.many1<_>(Fm.Parser.item<_>(Fm.Parser.term));
-    Parser.first_of<_>([
+    Parser.text("(");
+    var args = Parser.until1<_>(
       Parser.spaces_text(")"),
-      Parser.spaces_text(">"),
-    ]);
+      Fm.Parser.item<_>(Fm.Parser.term));
     return List.for<_>(args)<_>(func, (x,f) Fm.Term.app(f, x));
   }
 
@@ -3628,6 +3791,7 @@ Fm.Parser.term: Parser(Fm.Term)
       Fm.Parser.type,
       Fm.Parser.forall,
       Fm.Parser.lambda,
+      Fm.Parser.lambda.erased,
       Fm.Parser.parenthesis,
       Fm.Parser.letforin,
       Fm.Parser.let,
@@ -3650,16 +3814,17 @@ Fm.Parser.term: Parser(Fm.Term)
 
 // Parses a core term (suffix phase)
 Fm.Parser.suffix(term: Fm.Term): Parser(Fm.Term)
-  (code)
+  (idx, code)
   let suffix_parser = Parser.first_of<_>([
     Fm.Parser.application(term),
+    Fm.Parser.application.erased(term),
     Fm.Parser.arrow(term),
     Fm.Parser.equality(term),
     Fm.Parser.annotation(term),
   ]);
-  case suffix_parser(code) as suffix_parsed {
-    error: Parser.Reply.value<_>(code, term),
-    value: Fm.Parser.suffix(suffix_parsed.val, suffix_parsed.code),
+  case suffix_parser(idx, code) as suffix_parsed {
+    error: Parser.Reply.value<_>(idx, code, term),
+    value: Fm.Parser.suffix(suffix_parsed.val, suffix_parsed.idx, suffix_parsed.code),
   }
 
 // Builds a chained forall
@@ -3711,13 +3876,14 @@ Fm.Parser.datatype: Parser(Fm.Datatype)
     let pars = Maybe.default<_>([], pars);
     let inds = Maybe.default<_>([], inds);
     Fm.Parser.spaces_text("{");
-    var ctrs = Parser.many<_>(Fm.Parser.item<_>(Fm.Parser.constructor(name)));
-    Fm.Parser.spaces_text("}");
+    var ctrs = Parser.until<_>(
+      Fm.Parser.spaces_text("}"),
+      Fm.Parser.item<_>(Fm.Parser.constructor(name)));
     return Fm.Datatype.new(name, pars, inds, ctrs);
   }
 
 // Parses a definition
-Fm.Parser.definition: Parser(Fm.Def)
+Fm.Parser.file.def(defs: Fm.Defs): Parser(Fm.Defs)
   do Parser {
     Fm.Parser.spaces;
     var name = Fm.Parser.name;
@@ -3730,61 +3896,188 @@ Fm.Parser.definition: Parser(Fm.Def)
     let term = Fm.Parser.make_lambda(List.mapped<_>(args)<_>((x) case x { new: x.name }),term);
     let type = Fm.Term.bind([], (x) Bits.1(x), type);
     let term = Fm.Term.bind([], (x) Bits.0(x), term);
-    return Fm.Def.new(name, term, type, Fm.Status.init);
+    let defs = Fm.set<_>(name, Fm.Def.new(name, term, type, Fm.Status.init), defs);
+    return defs;
+  }
+
+// Parses an ADT
+Fm.Parser.file.adt(defs: Fm.Defs): Parser(Fm.Defs)
+  do Parser {
+    var adt = Fm.Parser.datatype;
+    case adt {
+      new: do Parser {
+        let term = Fm.Datatype.build_term(adt);
+        let term = Fm.Term.bind([], (x) Bits.1(x), term);
+        let type = Fm.Datatype.build_type(adt);
+        let type = Fm.Term.bind([], (x) Bits.0(x), type);
+        let defs = Fm.set<_>(adt.name, Fm.Def.new(adt.name, term, type, Fm.Status.init), defs);
+        let defs = List.fold<_>(adt.ctrs)<_>(defs, (ctr, defs)
+          let typ_name = adt.name;
+          let ctr_name = String.flatten([typ_name, Fm.Name.read("."), case ctr { new: ctr.name }]);
+          let ctr_term = Fm.Constructor.build_term(adt, ctr);
+          let ctr_term = Fm.Term.bind([], (x) Bits.1(x), ctr_term);
+          let ctr_type = Fm.Constructor.build_type(adt, ctr);
+          let ctr_type = Fm.Term.bind([], (x) Bits.0(x), ctr_type);
+          Fm.set<_>(ctr_name, Fm.Def.new(ctr_name, ctr_term, ctr_type, Fm.Status.init), defs));
+        return defs;
+      }
+    };
+  }
+
+// Parses the end of a file
+Fm.Parser.file.end(defs: Fm.Defs): Parser(Fm.Defs)
+  do Parser {
+    Fm.Parser.spaces;
+    Parser.eof;
+    return defs;
   }
 
 // Parses many definitions
 Fm.Parser.file.go(defs: Fm.Defs): Parser(Fm.Defs)
   do Parser {
-    var def = Parser.maybe<_>(Fm.Parser.definition);
-    case def {
-      some: case def.value {
-        new: Fm.Parser.file.go(Fm.set<_>(def.value.name, def.value, defs))
-      },
-      none: do Parser {
-        var adt = Parser.maybe<_>(Fm.Parser.datatype);
-        case adt {
-          some: case adt.value {
-            new:
-              let term = Fm.Datatype.build_term(adt.value);
-              let term = Fm.Term.bind([], (x) Bits.1(x), term);
-              let type = Fm.Datatype.build_type(adt.value);
-              let type = Fm.Term.bind([], (x) Bits.0(x), type);
-              let defs = Fm.set<_>(adt.value.name, Fm.Def.new(adt.value.name, term, type, Fm.Status.init), defs);
-              let defs = List.fold<_>(adt.value.ctrs)<_>(defs, (ctr, defs)
-                let typ_name = adt.value.name;
-                let ctr_name = String.flatten([typ_name, Fm.Name.read("."), case ctr { new: ctr.name }]);
-                let ctr_term = Fm.Constructor.build_term(adt.value, ctr);
-                let ctr_term = Fm.Term.bind([], (x) Bits.1(x), ctr_term);
-                let ctr_type = Fm.Constructor.build_type(adt.value, ctr);
-                let ctr_type = Fm.Term.bind([], (x) Bits.0(x), ctr_type);
-                Fm.set<_>(ctr_name, Fm.Def.new(ctr_name, ctr_term, ctr_type, Fm.Status.init), defs));
-              Fm.Parser.file.go(defs)
-          },
-          none: do Parser {
-            return defs;
-          }
-        };
-      }
+    var stop = Parser.is_eof;
+    if stop then do Parser {
+      return defs;
+    } else do Parser {
+      var defs = Parser.first_of<_>([
+        Fm.Parser.file.def(defs),
+        Fm.Parser.file.adt(defs),
+        Fm.Parser.file.end(defs),
+      ]);
+      Fm.Parser.file.go(defs);
     };
   }
+    //var def = Parser.maybe<_>(Fm.Parser.definition);
+    //case def {
+      //// Parses top-level definition
+      //some: case def.value {
+        //new: Fm.Parser.file.go(Fm.set<_>(def.value.name, def.value, defs))
+      //},
+      //none: do Parser {
+        //var adt = Parser.maybe<_>(Fm.Parser.datatype);
+        //case adt {
+          //some: case adt.value {
+            //new:
+              //let term = Fm.Datatype.build_term(adt.value);
+              //let term = Fm.Term.bind([], (x) Bits.1(x), term);
+              //let type = Fm.Datatype.build_type(adt.value);
+              //let type = Fm.Term.bind([], (x) Bits.0(x), type);
+              //let defs = Fm.set<_>(adt.value.name, Fm.Def.new(adt.value.name, term, type, Fm.Status.init), defs);
+              //let defs = List.fold<_>(adt.value.ctrs)<_>(defs, (ctr, defs)
+                //let typ_name = adt.value.name;
+                //let ctr_name = String.flatten([typ_name, Fm.Name.read("."), case ctr { new: ctr.name }]);
+                //let ctr_term = Fm.Constructor.build_term(adt.value, ctr);
+                //let ctr_term = Fm.Term.bind([], (x) Bits.1(x), ctr_term);
+                //let ctr_type = Fm.Constructor.build_type(adt.value, ctr);
+                //let ctr_type = Fm.Term.bind([], (x) Bits.0(x), ctr_type);
+                //Fm.set<_>(ctr_name, Fm.Def.new(ctr_name, ctr_term, ctr_type, Fm.Status.init), defs));
+              //Fm.Parser.file.go(defs)
+          //},
+          //none: do Parser {
+            //return defs;
+          //}
+        //};
+      //}
+    //};
+  //}
 
 // Parses many definitions
 Fm.Parser.file: Parser(Fm.Defs)
   Fm.Parser.file.go(Map.new<_>)
 
+// Stringifies a parser error
+Fm.Parser.highlight.tc(
+  code: String,
+  ix0: Nat,
+  ix1: Nat,
+  col: Nat,
+  row: Nat,
+  lft: Maybe(Nat),
+  lin: String,
+  res: List(String),
+): String
+  //use skip = Debug.log<_>(String.flatten([
+    //"ix0=", Nat.show(ix0), " ",
+    //"ix1=", Nat.show(ix1), " ",
+    //"col=", Nat.show(col), " ",
+    //"row=", Nat.show(row), " ",
+    //"lft=", case lft { none: "-", some: Nat.show(lft.value) }, " ",
+    //"len=", Nat.show(String.length(code)), " ",
+    //"chr=", Fm.escape.char(case code { nil: '_', cons: code.head }), " ",
+    //"res={", String.join("|", List.reverse<_>(res)), "}",
+  //]))
+  case code {
+    nil:
+      Fm.Parser.highlight.end(col, row, List.reverse<_>(res)),
+    cons:
+      if U16.eql(code.head, '\n') then
+        let stp = Maybe.extract<_>(lft)<_>(Bool.false, Nat.is_zero);
+        if stp then
+          Fm.Parser.highlight.end(col, row, List.reverse<_>(res))
+        else
+          let spa = 3;
+          let siz = Nat.succ(Nat.double(spa));
+          let lft = case ix1 {
+            zero: case lft {
+              none: Maybe.some<_>(spa),
+              some: Maybe.some<_>(Nat.pred(lft.value)),
+            },
+            succ: lft,
+          };
+          let ix0 = Nat.pred(ix0);
+          let ix1 = Nat.pred(ix1);
+          let col = 0;
+          let row = Nat.succ(row);
+          let res = List.take<_>(siz, List.cons<_>(String.reverse(lin), res));
+          let lin = String.reverse(String.flatten([
+            String.pad_left(4, ' ', Nat.show(row)),
+            " | "
+          ]));
+          Fm.Parser.highlight.tc(code.tail, ix0, ix1, col, row, lft, lin, res)
+      else
+        let chr = String.cons(code.head, String.nil);
+        let chr =
+          if Bool.and(Nat.is_zero(ix0), Bool.not(Nat.is_zero(ix1))) then
+            String.reverse(String.color("31", String.color("4", chr)))
+          else
+            chr;
+        let ix0 = Nat.pred(ix0);
+        let ix1 = Nat.pred(ix1);
+        let col = Nat.succ(col);
+        let lin = String.flatten([chr, lin]);
+        Fm.Parser.highlight.tc(code.tail, ix0, ix1, col, row, lft, lin, res)
+  }
+  
+Fm.Parser.highlight.end(
+  col: Nat,
+  row: Nat,
+  res: List(String),
+): String
+  String.join("\n", res)
+
+Fm.Parser.highlight(
+  code: String,
+  idx: Nat,
+): String
+  Fm.Parser.highlight.tc(code, idx, Nat.succ(idx), 0, 1, Maybe.none<_>, "", [])
+  
 // Reads a term from string
 Fm.Term.read(code: String): Maybe(Fm.Term)
-  case Fm.Parser.term(code) as parsed {
+  case Fm.Parser.term(0,code) as parsed {
     error: Maybe.none<_>,
     value: Maybe.some<_>(parsed.val),
   }
 
 // Reads a defs from string
-Fm.Defs.read(code: String): Maybe(Fm.Defs)
-  case Fm.Parser.file(code) as parsed {
-    error: Maybe.none<_>,
-    value: Maybe.some<_>(parsed.val),
+Fm.Defs.read(code: String): Either(String, Fm.Defs)
+  case Fm.Parser.file(0, code) as parsed {
+    error:
+      let err = parsed.err;
+      let hig = Fm.Parser.highlight(code, parsed.idx);
+      let str = String.flatten([err, "\n", hig]);
+      Either.left<_,_>(str),
+    value:
+      Either.right<_,_>(parsed.val),
   }
 
 // Compilers
@@ -3829,7 +4122,7 @@ Fm.Comp.compile(
   //use skip = Debug.log<_>(String.flatten([
     //"Compile: ",
     //"- ", Fm.Term.show(term), "\n",
-    //"- ", Fm.Term.show(Maybe.default<>(Fm.Term.ref("_"), type)), "\n",
+    //"- ", Fm.Term.show(Maybe.default<_>(Fm.Term.ref("_"), type)), "\n",
   //]))
   case term {
     ref: do Maybe {
@@ -4157,25 +4450,23 @@ Fm.Defs.core(defs: Fm.Defs): String
 // API
 // ===
 
+Fm.exec(report: Fm.Defs -> String, code: String): String
+  case Fm.Defs.read(code) as parsed {
+    left: parsed.value,
+    right: report(parsed.value),
+  }
+
 Fm.to_core_one(code: String, name: String): String
-  let defs = Maybe.default<_>(Map.new<_>, Fm.Defs.read(code));
-  let defs = Fm.Synth.one(name, defs);
-  Fm.Defs.core(defs)
+  Fm.exec((defs) Fm.Defs.core(Fm.Synth.one(name,defs)), code)
 
 Fm.to_core_all(code: String): String
-  let defs = Maybe.default<_>(Map.new<_>, Fm.Defs.read(code));
-  let defs = Fm.Synth.all(defs);
-  Fm.Defs.core(defs)
+  Fm.exec((defs) Fm.Defs.core(Fm.Synth.all(defs)), code)
 
 Fm.check_all(code: String): String
-  let defs = Maybe.default<_>(Map.new<_>, Fm.Defs.read(code));
-  let defs = Fm.Synth.all(defs);
-  Fm.Defs.report(defs)
+  Fm.exec((defs) Fm.Defs.report(Fm.Synth.all(defs)), code)
 
 Fm.check_one(code: String, name: String): String
-  let defs = Maybe.default<_>(Map.new<_>, Fm.Defs.read(code));
-  let defs = Fm.Synth.one(name, defs);
-  Fm.Defs.report(defs)
+  Fm.exec((defs) Fm.Defs.report(Fm.Synth.one(name,defs)), code)
 
 Fm.exports: Unit
   let _ = Fm.to_core_all;

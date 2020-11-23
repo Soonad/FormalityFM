@@ -1,9 +1,12 @@
 - Make case-of smarter
 - Make "case as" create a let for the "as" value
 - Do-notation not need the type name
-- Parser errors
+- Parser errors (add index and error to parser state, combine errors by max len)
+  - Parser.many_until: igual o many, porém com um delimitador, o que permite
+    melhores mensagnes de erro
 - Source location on errors
 - Check a whole file with `fmfm file.fm`
 - Implicit arguments
 - Show only first type error + hole errors, to avoid overwhelming user
 - JS Compiler
+- More string escape sequences
