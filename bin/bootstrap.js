@@ -5,6 +5,8 @@ var {fmc_to_js, fmc} = require("formcore-lang"); // FormCore, which has the JS c
 
 var breaking = false;
 
+process.chdir(path.join(__dirname, "../src"));
+
 if (breaking) {
   // TODO: remove last line
   console.log("Using old Formality to generate formality.js");
