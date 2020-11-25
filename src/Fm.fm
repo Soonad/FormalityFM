@@ -13,22 +13,17 @@ Fm.Name: Type
 type Fm.Term {
   // A variable bound by another constructor
   var(
-    orig: Maybe(Fm.Origin),
     name: Fm.Name, // the variable name, used for pretty printing
     indx: Nat, // the variable bruijn level, used for equality and binding
   ),
   // A reference to a top-level definition
   ref(
-    orig: Maybe(Fm.Origin),
     name: Fm.Name, // the reference name
   ),
   // The type of types
-  typ(
-    orig: Maybe(Fm.Origin),
-  ),
+  typ,
   // The self-dependent function type (self-Pi)
   all(
-    orig: Maybe(Fm.Origin),
     eras: Bool, // if it is erased at runtime
     self: Fm.Name, // the term name
     name: Fm.Name, // the input name
@@ -37,67 +32,56 @@ type Fm.Term {
   ),
   // An anonymous function (lambda)
   lam(
-    orig: Maybe(Fm.Origin),
     name: Fm.Name, // the input name
     body: Fm.Term -> Fm.Term, // the returned body
   ),
   // A function application
   app(
-    orig: Maybe(Fm.Origin),
     func: Fm.Term, // the function
     argm: Fm.Term, // the argument
   ),
   // A local definition
   let(
-    orig: Maybe(Fm.Origin),
     name: Fm.Name, // the expression name
     expr: Fm.Term, // the expression value
     body: Fm.Term -> Fm.Term, // the body where name=value
   ),
   // A local alias
   def(
-    orig: Maybe(Fm.Origin),
     name: Fm.Name, // the expression name
     expr: Fm.Term, // the expression value
     body: Fm.Term -> Fm.Term, // the body where name=value
   ),
   // An inline annotation
   ann(
-    orig: Maybe(Fm.Origin),
     done: Bool, // was this type-checked?
     term: Fm.Term, // the annotated term
     type: Fm.Term, // the annotated type
   ),
   // A hole to show the goal
   gol(
-    orig: Maybe(Fm.Origin),
     name: Fm.Name, // the goal's name
     dref: List(Bits), // a list of labels to expand when displaying it
     verb: Bool, // show labels of expandable terms?
   ),
   // A hole to be auto-filled
   hol(
-    orig: Maybe(Fm.Origin),
     path: Bits,
   ),
   // A natural number
   nat(
-    orig: Maybe(Fm.Origin),
     natx: Nat,
   ),
   // A character
   chr(
-    orig: Maybe(Fm.Origin),
     chrx: Char,
   ),
   // A string
   str(
-    orig: Maybe(Fm.Origin),
     strx: String,
   ),
   // A case-of expression
   cse(
-    orig: Maybe(Fm.Origin),
     path: Bits,
     expr: Fm.Term,
     name: Fm.Name,
@@ -105,6 +89,11 @@ type Fm.Term {
     cses: Map(Fm.Term),
     moti: Fm.Term,
   ),
+  // An origin
+  ori(
+    orig: Fm.Origin,
+    expr: Fm.Term,
+  )
 }
 
 type Fm.Origin {
@@ -313,73 +302,6 @@ Fm.Context.find(name: Fm.Name, ctx: Fm.Context): Maybe(Fm.Term)
 Fm.Context.names(ctx: Fm.Context): List(Fm.Name)
   List.mapped<_>(ctx)<_>((x) Pair.fst<_,_>(x))
 
-// Utils
-// =====
-
-Fm.Term.xvar: Fm.Name -> Nat -> Fm.Term
-  Fm.Term.var(Maybe.none<_>)
-
-Fm.Term.xref: Fm.Name -> Fm.Term
-  Fm.Term.ref(Maybe.none<_>)
-
-Fm.Term.xtyp: Fm.Term
-  Fm.Term.typ(Maybe.none<_>)
-
-Fm.Term.xall: Bool -> Fm.Name -> Fm.Name -> Fm.Term -> (Fm.Term -> Fm.Term -> Fm.Term) -> Fm.Term
-  Fm.Term.all(Maybe.none<_>)
-
-Fm.Term.xlam: Fm.Name -> (Fm.Term -> Fm.Term) -> Fm.Term
-  Fm.Term.lam(Maybe.none<_>)
-
-Fm.Term.xapp: Fm.Term -> Fm.Term -> Fm.Term
-  Fm.Term.app(Maybe.none<_>)
-
-Fm.Term.xlet: Fm.Name -> Fm.Term -> (Fm.Term -> Fm.Term) -> Fm.Term
-  Fm.Term.let(Maybe.none<_>)
-
-Fm.Term.xdef: Fm.Name -> Fm.Term -> (Fm.Term -> Fm.Term) -> Fm.Term
-  Fm.Term.def(Maybe.none<_>)
-
-Fm.Term.xann: Bool -> Fm.Term -> Fm.Term -> Fm.Term
-  Fm.Term.ann(Maybe.none<_>)
-
-Fm.Term.xgol: Fm.Name -> List(Bits) -> Bool -> Fm.Term
-  Fm.Term.gol(Maybe.none<_>)
-
-Fm.Term.xhol: Bits -> Fm.Term
-  Fm.Term.hol(Maybe.none<_>)
-
-Fm.Term.xnat: Nat -> Fm.Term
-  Fm.Term.nat(Maybe.none<_>)
-
-Fm.Term.xchr: Char -> Fm.Term
-  Fm.Term.chr(Maybe.none<_>)
-
-Fm.Term.xstr: String -> Fm.Term
-  Fm.Term.str(Maybe.none<_>)
-
-Fm.Term.xcse: Bits -> Fm.Term -> Fm.Name -> List(Fm.Def) -> Map(Fm.Term) -> Fm.Term -> Fm.Term
-  Fm.Term.cse(Maybe.none<_>)
-
-Fm.Term.origin(term: Fm.Term): Maybe(Fm.Origin)
-  case term {
-    var: term.orig,
-    ref: term.orig,
-    typ: term.orig,
-    all: term.orig,
-    lam: term.orig,
-    app: term.orig,
-    let: term.orig,
-    def: term.orig,
-    ann: term.orig,
-    gol: term.orig,
-    hol: term.orig,
-    nat: term.orig,
-    chr: term.orig,
-    str: term.orig,
-    cse: term.orig,
-  }
-
 // Stringification
 // ===============
 
@@ -537,7 +459,7 @@ Fm.Term.show.as_nat.go(term: Fm.Term): Maybe(Nat)
 Fm.Term.show.as_nat(term: Fm.Term): Maybe(String)
   Maybe.mapped<_>(Fm.Term.show.as_nat.go(term))<_>(Nat.show)
 
-String.color(col: String, str: String): String
+Fm.color(col: String, str: String): String
   String.cons(Nat.to_u16(27),
   String.cons('[',
   String.concat(col,
@@ -588,7 +510,7 @@ Fm.Term.show.go(term: Fm.Term, path: Maybe(Bits -> Bits)): String
           some: 
             let path_val = Bits.concat(Fm.Path.to_bits(path.value), Bits.1(Bits.nil));
             let path_str = Nat.show(Bits.to_nat(path_val));
-            String.flatten([name, String.color("2", String.concat("-", path_str))]),
+            String.flatten([name, Fm.color("2", String.concat("-", path_str))]),
         },
       var:
         Fm.Name.show(term.name),
@@ -603,14 +525,14 @@ Fm.Term.show.go(term: Fm.Term, path: Maybe(Bits -> Bits)): String
         let clos = if eras then ">" else ")";
         let body = Fm.Term.show.go(
           term.body(
-            Fm.Term.xvar(term.self, 0),
-            Fm.Term.xvar(term.name, 0)),
+            Fm.Term.var(term.self, 0),
+            Fm.Term.var(term.name, 0)),
           Fm.MPath.1(path));
         String.flatten([self,open,name,":",type,clos," ",body]),
       lam:
         let name = Fm.Name.show(term.name);
         let body = Fm.Term.show.go(
-          term.body(Fm.Term.xvar(term.name, 0)),
+          term.body(Fm.Term.var(term.name, 0)),
           Fm.MPath.0(path));
         String.flatten(["(",name,") ",body]),
       app: Fm.Term.show.app(term, path, List.nil<_>),
@@ -618,14 +540,14 @@ Fm.Term.show.go(term: Fm.Term, path: Maybe(Bits -> Bits)): String
         let name = Fm.Name.show(term.name);
         let expr = Fm.Term.show.go(term.expr, Fm.MPath.0(path));
         let body = Fm.Term.show.go(
-          term.body(Fm.Term.xvar(term.name, 0)),
+          term.body(Fm.Term.var(term.name, 0)),
           Fm.MPath.1(path));
         String.flatten(["let ", name, " = ", expr, "; ", body]),
       def:
         let name = Fm.Name.show(term.name);
         let expr = Fm.Term.show.go(term.expr, Fm.MPath.0(path));
         let body = Fm.Term.show.go(
-          term.body(Fm.Term.xvar(term.name, 0)),
+          term.body(Fm.Term.var(term.name, 0)),
           Fm.MPath.1(path));
         String.flatten(["def ", name, " = ", expr, "; ", body]),
       ann:
@@ -646,12 +568,12 @@ Fm.Term.show.go(term: Fm.Term, path: Maybe(Bits -> Bits)): String
       cse:
         let expr = Fm.Term.show.go(term.expr, Fm.MPath.0(path));
         let name = Fm.Name.show(term.name);
-        let with = String.join("", List.mapped<_>(term.with)<_>((def)
-          case def {
+        let wyth = String.join("", List.mapped<_>(term.with)<_>((defn)
+          case defn {
             new:
-              let name = Fm.Name.show(def.name);
-              let type = Fm.Term.show.go(def.type, Maybe.none<_>);
-              let term = Fm.Term.show.go(def.term, Maybe.none<_>);
+              let name = Fm.Name.show(defn.name);
+              let type = Fm.Term.show.go(defn.type, Maybe.none<_>);
+              let term = Fm.Term.show.go(defn.term, Maybe.none<_>);
               String.flatten([name, ": ", type, " = " term, ";"])
           }));
         let cses = Map.to_list<_>(term.cses);
@@ -660,7 +582,9 @@ Fm.Term.show.go(term: Fm.Term, path: Maybe(Bits -> Bits)): String
           let term = Fm.Term.show.go(Pair.snd<_,_>(x), Maybe.none<_>);
           String.flatten([name, ": ", term, "; "])));
         let moti = Fm.Term.show.go(term.moti, Maybe.none<_>);
-        String.flatten(["case ",expr," as ",name,with," { ",cses,"} : ",moti]),
+        String.flatten(["case ",expr," as ",name,wyth," { ",cses,"} : ",moti]),
+      ori:
+        Fm.Term.show.go(term.expr, path),
     }
   }
 
@@ -670,16 +594,16 @@ Fm.Term.show(term: Fm.Term): String
 // Stringifies a defs
 Fm.Defs.show(defs: Fm.Defs): String
   let str = "";
-  for name_def in Map.to_list<Fm.Def>(defs) with str:
-    case name_def {
-      new: case name_def.snd as def {
+  for name_defn in Map.to_list<Fm.Def>(defs) with str:
+    case name_defn {
+      new: case name_defn.snd as defn {
         new: String.flatten([
           str,
-          Fm.Name.show(def.name),
+          Fm.Name.show(defn.name),
           ": ",
-          Fm.Term.show(def.type),
+          Fm.Term.show(defn.type),
           "\n  ",
-          Fm.Term.show(def.term),
+          Fm.Term.show(defn.term),
           "\n",
         ])
       }
@@ -692,14 +616,14 @@ Fm.Defs.show(defs: Fm.Defs): String
 Fm.Term.bind(vars: Fm.Context, path: Fm.Path, term: Fm.Term): Fm.Term 
   case term {
     ref: case Fm.Context.find(term.name, vars) as got {
-      none: Fm.Term.ref(term.orig, term.name),
+      none: Fm.Term.ref(term.name),
       some: got.value,
     },
     var: case List.at_last<_>(term.indx, vars) as got {
-      none: Fm.Term.var(term.orig, term.name, term.indx),
+      none: Fm.Term.var(term.name, term.indx),
       some: Pair.snd<_,_>(got.value),
     },
-    typ: Fm.Term.typ(term.orig),
+    typ: Fm.Term.typ,
     all: 
       let vlen = List.length<_>(vars);
       def xtyp = Fm.Term.bind(vars, Fm.Path.0(path), term.xtyp);
@@ -709,64 +633,66 @@ Fm.Term.bind(vars: Fm.Context, path: Fm.Path, term: Fm.Term): Fm.Term
           vars)),
         Fm.Path.1(path),
         term.body(
-          Fm.Term.xvar(term.self, vlen),
-          Fm.Term.xvar(term.name, Nat.succ(vlen))));
-      Fm.Term.all(term.orig, term.eras, term.self, term.name, xtyp, body),
+          Fm.Term.var(term.self, vlen),
+          Fm.Term.var(term.name, Nat.succ(vlen))));
+      Fm.Term.all(term.eras, term.self, term.name, xtyp, body),
     lam:
       let vlen = List.length<_>(vars);
       def body = (x) Fm.Term.bind(
         List.cons<_>({term.name,x},vars),
         Fm.Path.0(path),
-        term.body(Fm.Term.xvar(term.name, vlen)));
-      Fm.Term.lam(term.orig, term.name, body),
+        term.body(Fm.Term.var(term.name, vlen)));
+      Fm.Term.lam(term.name, body),
     app:
       def func = Fm.Term.bind(vars, Fm.Path.0(path), term.func);
       def argm = Fm.Term.bind(vars, Fm.Path.1(path), term.argm);
-      Fm.Term.app(term.orig, func, argm),
+      Fm.Term.app(func, argm),
     let:
       let vlen = List.length<_>(vars);
       def expr = Fm.Term.bind(vars, Fm.Path.0(path), term.expr);
       def body = (x) Fm.Term.bind(
         List.cons<_>({term.name,x}, vars),
         Fm.Path.1(path),
-        term.body(Fm.Term.xvar(term.name, vlen)));
-      Fm.Term.let(term.orig, term.name, expr, body),
+        term.body(Fm.Term.var(term.name, vlen)));
+      Fm.Term.let(term.name, expr, body),
     def:
       let vlen = List.length<_>(vars);
       def expr = Fm.Term.bind(vars, Fm.Path.0(path), term.expr);
       def body = (x) Fm.Term.bind(
         List.cons<_>({term.name,x}, vars),
         Fm.Path.1(path),
-        term.body(Fm.Term.xvar(term.name, vlen)));
-      Fm.Term.def(term.orig, term.name, expr, body),
+        term.body(Fm.Term.var(term.name, vlen)));
+      Fm.Term.def(term.name, expr, body),
     ann:
       def term = Fm.Term.bind(vars, Fm.Path.0(path), term.term);
       def type = Fm.Term.bind(vars, Fm.Path.1(path), term.type);
-      Fm.Term.ann(term.orig, term.done, term, type),
+      Fm.Term.ann(term.done, term, type),
     gol:
-      Fm.Term.gol(term.orig, term.name, term.dref, term.verb),
+      Fm.Term.gol(term.name, term.dref, term.verb),
     hol:
-      Fm.Term.hol(term.orig, Fm.Path.to_bits(path)),
+      Fm.Term.hol(Fm.Path.to_bits(path)),
     nat:
-      Fm.Term.nat(term.orig, term.natx),
+      Fm.Term.nat(term.natx),
     chr:
-      Fm.Term.chr(term.orig, term.chrx),
+      Fm.Term.chr(term.chrx),
     str:
-      Fm.Term.str(term.orig, term.strx),
+      Fm.Term.str(term.strx),
     cse:
       let expr = Fm.Term.bind(vars, Fm.Path.0(path), term.expr);
       let name = term.name; // TODO
-      let with = term.with; // TODO
+      let wyth = term.with; // TODO
       let cses = term.cses; // TODO
       let moti = term.moti; // TODO
-      Fm.Term.cse(term.orig, Fm.Path.to_bits(path), expr, name, with, cses, moti),
+      Fm.Term.cse(Fm.Path.to_bits(path), expr, name, wyth, cses, moti),
+    ori:
+      Fm.Term.ori(term.orig, Fm.Term.bind(vars, path, term.expr)),
   }
 
 // REDUCE: Reduces a high order term to weak head normal form
 Fm.Term.reduce(term: Fm.Term, defs: Fm.Defs): Fm.Term
   case term {
     ref: case Fm.get<_>(term.name, defs) as got {
-      none: Fm.Term.ref(term.orig, term.name),
+      none: Fm.Term.ref(term.name),
       some: case got.value { new: Fm.Term.reduce(got.value.term, defs) },
     },
     app:
@@ -787,6 +713,8 @@ Fm.Term.reduce(term: Fm.Term, defs: Fm.Defs): Fm.Term
       Fm.Term.reduce(Fm.Term.unroll_chr(term.chrx), defs),
     str:
       Fm.Term.reduce(Fm.Term.unroll_str(term.strx), defs),
+    ori:
+      Fm.Term.reduce(term.expr, defs),
     _: term,
   }
 
@@ -794,47 +722,96 @@ Fm.Term.reduce(term: Fm.Term, defs: Fm.Defs): Fm.Term
 Fm.Term.normalize(term: Fm.Term, defs: Fm.Defs): Fm.Term
   case Fm.Term.reduce(term, defs) as term {
     ref:
-      Fm.Term.ref(term.orig, term.name),
+      Fm.Term.ref(term.name),
     var:
-      Fm.Term.var(term.orig, term.name, term.indx),
+      Fm.Term.var(term.name, term.indx),
     typ:
-      Fm.Term.typ(term.orig),
+      Fm.Term.typ,
     all: 
       def xtyp = Fm.Term.normalize(term.xtyp, defs);
       def body = (s,x) Fm.Term.normalize(term.body(s,x), defs);
-      Fm.Term.all(term.orig, term.eras, term.self, term.name, xtyp, body),
+      Fm.Term.all(term.eras, term.self, term.name, xtyp, body),
     lam:
       def body = (x) Fm.Term.normalize(term.body(x), defs);
-      Fm.Term.lam(term.orig, term.name, body),
+      Fm.Term.lam(term.name, body),
     app:
       def func = Fm.Term.normalize(term.func, defs);
       def argm = Fm.Term.normalize(term.argm, defs);
-      Fm.Term.app(term.orig, func, argm),
+      Fm.Term.app(func, argm),
     let:
       def expr = Fm.Term.normalize(term.expr, defs);
       def body = (x) Fm.Term.normalize(term.body(x), defs);
-      Fm.Term.let(term.orig, term.name, expr, body),
+      Fm.Term.let(term.name, expr, body),
     def:
       def expr = Fm.Term.normalize(term.expr, defs);
       def body = (x) Fm.Term.normalize(term.body(x), defs);
-      Fm.Term.def(term.orig, term.name, expr, body),
+      Fm.Term.def(term.name, expr, body),
     ann:
       def term = Fm.Term.normalize(term.term, defs);
       def type = Fm.Term.normalize(term.type, defs);
-      Fm.Term.ann(term.orig, term.done, term, type),
+      Fm.Term.ann(term.done, term, type),
     gol:
-      Fm.Term.gol(term.orig, term.name, term.dref, term.verb),
+      Fm.Term.gol(term.name, term.dref, term.verb),
     hol:
-      Fm.Term.hol(term.orig, term.path),
+      Fm.Term.hol(term.path),
     nat:
-      Fm.Term.nat(term.orig, term.natx),
+      Fm.Term.nat(term.natx),
     chr:
-      Fm.Term.chr(term.orig, term.chrx),
+      Fm.Term.chr(term.chrx),
     str:
-      Fm.Term.str(term.orig, term.strx),
+      Fm.Term.str(term.strx),
     cse:
       term,
+    ori:
+      Fm.Term.normalize(term.expr, defs),
   }
+
+//Fm.Term.clean(term: Fm.Term, defs: Fm.Defs): Fm.Term
+  //case term {
+    //ref:
+      //Fm.Term.ref(term.name),
+    //var:
+      //Fm.Term.var(term.name, term.indx),
+    //typ:
+      //Fm.Term.typ,
+    //all: 
+      //def xtyp = Fm.Term.clean(term.xtyp, defs);
+      //def body = (s,x) Fm.Term.clean(term.body(s,x), defs);
+      //Fm.Term.all(term.eras, term.self, term.name, xtyp, body),
+    //lam:
+      //def body = (x) Fm.Term.clean(term.body(x), defs);
+      //Fm.Term.lam(term.name, body),
+    //app:
+      //def func = Fm.Term.clean(term.func, defs);
+      //def argm = Fm.Term.clean(term.argm, defs);
+      //Fm.Term.app(func, argm),
+    //let:
+      //def expr = Fm.Term.clean(term.expr, defs);
+      //def body = (x) Fm.Term.clean(term.body(x), defs);
+      //Fm.Term.let(term.name, expr, body),
+    //def:
+      //def expr = Fm.Term.clean(term.expr, defs);
+      //def body = (x) Fm.Term.clean(term.body(x), defs);
+      //Fm.Term.def(term.name, expr, body),
+    //ann:
+      //def term = Fm.Term.clean(term.term, defs);
+      //def type = Fm.Term.clean(term.type, defs);
+      //Fm.Term.ann(term.done, term, type),
+    //gol:
+      //Fm.Term.gol(term.name, term.dref, term.verb),
+    //hol:
+      //Fm.Term.hol(term.path),
+    //nat:
+      //Fm.Term.nat(term.natx),
+    //chr:
+      //Fm.Term.chr(term.chrx),
+    //str:
+      //Fm.Term.str(term.strx),
+    //cse:
+      //term,
+    //ori:
+      //Fm.Term.clean(term.expr, defs),
+  //}
 
 // Patching
 // ========
@@ -844,34 +821,35 @@ Fm.Term.patch_at(path: Bits, term: Fm.Term, fn: Fm.Term -> Fm.Term): Fm.Term
   case term {
     all: case path {
       nil: fn(term),
-      0: Fm.Term.all(term.orig, term.eras, term.self, term.name, Fm.Term.patch_at(path.pred,term.xtyp,fn), term.body),
-      1: Fm.Term.all(term.orig, term.eras, term.self, term.name, term.xtyp, (s,x) Fm.Term.patch_at(path.pred,term.body(s,x),fn)),
+      0: Fm.Term.all(term.eras, term.self, term.name, Fm.Term.patch_at(path.pred,term.xtyp,fn), term.body),
+      1: Fm.Term.all(term.eras, term.self, term.name, term.xtyp, (s,x) Fm.Term.patch_at(path.pred,term.body(s,x),fn)),
     },
     lam: case path {
       nil: fn(term),
-      0: Fm.Term.lam(term.orig, term.name, (x) Fm.Term.patch_at(Bits.tail(path), term.body(x), fn)),
-      1: Fm.Term.lam(term.orig, term.name, (x) Fm.Term.patch_at(Bits.tail(path), term.body(x), fn)),
+      0: Fm.Term.lam(term.name, (x) Fm.Term.patch_at(Bits.tail(path), term.body(x), fn)),
+      1: Fm.Term.lam(term.name, (x) Fm.Term.patch_at(Bits.tail(path), term.body(x), fn)),
     },
     app: case path {
       nil: fn(term),
-      0: Fm.Term.app(term.orig, Fm.Term.patch_at(path.pred,term.func,fn), term.argm),
-      1: Fm.Term.app(term.orig, term.func, Fm.Term.patch_at(path.pred,term.argm,fn)),
+      0: Fm.Term.app(Fm.Term.patch_at(path.pred,term.func,fn), term.argm),
+      1: Fm.Term.app(term.func, Fm.Term.patch_at(path.pred,term.argm,fn)),
     },
     let: case path {
       nil: fn(term),
-      0: Fm.Term.let(term.orig, term.name, Fm.Term.patch_at(path.pred,term.expr,fn), term.body),
-      1: Fm.Term.let(term.orig, term.name, term.expr, (x) Fm.Term.patch_at(path.pred,term.body(x),fn)),
+      0: Fm.Term.let(term.name, Fm.Term.patch_at(path.pred,term.expr,fn), term.body),
+      1: Fm.Term.let(term.name, term.expr, (x) Fm.Term.patch_at(path.pred,term.body(x),fn)),
     },
     def: case path {
       nil: fn(term),
-      0: Fm.Term.def(term.orig, term.name, Fm.Term.patch_at(path.pred,term.expr,fn), term.body),
-      1: Fm.Term.def(term.orig, term.name, term.expr, (x) Fm.Term.patch_at(path.pred,term.body(x),fn)),
+      0: Fm.Term.def(term.name, Fm.Term.patch_at(path.pred,term.expr,fn), term.body),
+      1: Fm.Term.def(term.name, term.expr, (x) Fm.Term.patch_at(path.pred,term.body(x),fn)),
     },
     ann: case path {
       nil: fn(term),
-      0: Fm.Term.ann(term.orig, term.done, Fm.Term.patch_at(path,term.term,fn), term.type),
-      1: Fm.Term.ann(term.orig, term.done, Fm.Term.patch_at(path,term.term,fn), term.type),
+      0: Fm.Term.ann(term.done, Fm.Term.patch_at(path,term.term,fn), term.type),
+      1: Fm.Term.ann(term.done, Fm.Term.patch_at(path,term.term,fn), term.type),
     },
+    ori: Fm.Term.patch_at(path, term.expr, fn),
     _: case path {
       nil: fn(term),
       0: term,
@@ -883,7 +861,7 @@ Fm.Term.patch_at(path: Bits, term: Fm.Term, fn: Fm.Term -> Fm.Term): Fm.Term
 Fm.Term.expand_at(path: Bits, term: Fm.Term, defs: Fm.Defs): Fm.Term
   Fm.Term.patch_at(path, term, (term) case term {
     ref: case Fm.get<_>(term.name, defs) as got {
-      none: Fm.Term.ref(term.orig, term.name),
+      none: Fm.Term.ref(term.name),
       some: case got.value { new: got.value.term },
     },
     _: term,
@@ -900,50 +878,53 @@ Fm.Term.expand_ct(term: Fm.Term, defs: Fm.Defs, arity: Nat): Fm.Term
       let expand = Bool.or(Bool.and(String.eql(term.name, "Bool.false"), Nat.gtn(arity, 0)), expand);
       if expand then
         case Fm.get<_>(term.name, defs) as got {
-          none: Fm.Term.ref(term.orig, term.name),
+          none: Fm.Term.ref(term.name),
           some: case got.value { new: got.value.term },
         }
       else
-        Fm.Term.ref(term.orig, term.name),
+        Fm.Term.ref(term.name),
     var:
-      Fm.Term.var(term.orig, term.name, term.indx),
+      Fm.Term.var(term.name, term.indx),
     typ:
-      Fm.Term.typ(term.orig),
+      Fm.Term.typ,
     all: 
       def xtyp = Fm.Term.expand_ct(term.xtyp, defs, 0);
       def body = (s,x) Fm.Term.expand_ct(term.body(s,x), defs, 0);
-      Fm.Term.all(term.orig, term.eras, term.self, term.name, xtyp, body),
+      Fm.Term.all(term.eras, term.self, term.name, xtyp, body),
     lam:
       def body = (x) Fm.Term.expand_ct(term.body(x), defs, 0);
-      Fm.Term.lam(term.orig, term.name, body),
+      Fm.Term.lam(term.name, body),
     app:
       def func = Fm.Term.expand_ct(term.func, defs, Nat.succ(arity));
       def argm = Fm.Term.expand_ct(term.argm, defs, 0);
-      Fm.Term.app(term.orig, func, argm),
+      Fm.Term.app(func, argm),
     let:
       def expr = Fm.Term.expand_ct(term.expr, defs, 0);
       def body = (x) Fm.Term.expand_ct(term.body(x), defs, 0);
-      Fm.Term.let(term.orig, term.name, expr, body),
+      Fm.Term.let(term.name, expr, body),
     def:
       def expr = Fm.Term.expand_ct(term.expr, defs, 0);
       def body = (x) Fm.Term.expand_ct(term.body(x), defs, 0);
-      Fm.Term.def(term.orig, term.name, expr, body),
+      Fm.Term.def(term.name, expr, body),
     ann:
       def term = Fm.Term.expand_ct(term.term, defs, 0);
       def type = Fm.Term.expand_ct(term.type, defs, 0);
-      Fm.Term.ann(term.orig, term.done, term, type),
+      Fm.Term.ann(term.done, term, type),
     gol:
-      Fm.Term.gol(term.orig, term.name, term.dref, term.verb),
+      Fm.Term.gol(term.name, term.dref, term.verb),
     hol:
-      Fm.Term.hol(term.orig, term.path),
+      Fm.Term.hol(term.path),
     nat:
-      Fm.Term.nat(term.orig, term.natx),
+      Fm.Term.nat(term.natx),
     chr:
-      Fm.Term.chr(term.orig, term.chrx),
+      Fm.Term.chr(term.chrx),
     str:
-      Fm.Term.str(term.orig, term.strx),
+      Fm.Term.str(term.strx),
     cse:
       term,
+    ori:
+      def expr = Fm.Term.expand_ct(term.expr, defs, 0);
+      Fm.Term.ori(term.orig, term.expr),
   }
 
 // Expands a term for pretty printing
@@ -983,14 +964,14 @@ Fm.Term.serialize(term: Fm.Term, depth: Nat, init: Nat, x: Bits): Bits
       let xtyp = Fm.Term.serialize(term.xtyp, depth, init);
       let body = Fm.Term.serialize(
         term.body(
-          Fm.Term.xvar(term.self, depth),
-          Fm.Term.xvar(term.name, Nat.succ(depth))),
+          Fm.Term.var(term.self, depth),
+          Fm.Term.var(term.name, Nat.succ(depth))),
         Nat.succ(Nat.succ(depth)),
         init);
       Bits.1(Bits.0(Bits.0(eras(self(xtyp(body(x))))))),
     lam:
       let body = Fm.Term.serialize(
-        term.body(Fm.Term.xvar(term.name, depth)),
+        term.body(Fm.Term.var(term.name, depth)),
         Nat.succ(depth),
         init);
       Bits.1(Bits.0(Bits.1(body(x)))),
@@ -1001,7 +982,7 @@ Fm.Term.serialize(term: Fm.Term, depth: Nat, init: Nat, x: Bits): Bits
     let:
       let expr = Fm.Term.serialize(term.expr, depth, init);
       let body = Fm.Term.serialize(
-        term.body(Fm.Term.xvar(term.name, depth)),
+        term.body(Fm.Term.var(term.name, depth)),
         Nat.succ(depth),
         init);
       Bits.1(Bits.1(Bits.1(expr(body(x))))),
@@ -1022,6 +1003,8 @@ Fm.Term.serialize(term: Fm.Term, depth: Nat, init: Nat, x: Bits): Bits
       Fm.Term.serialize(Fm.Term.unroll_str(term.strx), depth, init, x),
     cse:
       x,
+    ori:
+      Fm.Term.serialize(term.expr, depth, init, x),
   }
 
 // Helper function
@@ -1057,11 +1040,11 @@ Fm.Term.equal(a: Fm.Term, b: Fm.Term, defs: Fm.Defs, lv: Nat, seen: Set): Fm.Che
           all: do Fm.Check {
             let seen = Set.set(id, seen);
             let a1_body = a1.body(
-              Fm.Term.xvar(a1.self, lv),
-              Fm.Term.xvar(a1.name, Nat.succ(lv)));
+              Fm.Term.var(a1.self, lv),
+              Fm.Term.var(a1.name, Nat.succ(lv)));
             let b1_body = b1.body(
-              Fm.Term.xvar(b1.self, lv),
-              Fm.Term.xvar(b1.name, Nat.succ(lv)));
+              Fm.Term.var(b1.self, lv),
+              Fm.Term.var(b1.name, Nat.succ(lv)));
             let eq_self = String.eql(a1.self, b1.self);
             let eq_eras = Bool.eql(a1.eras, b1.eras);
             if Bool.and(eq_self, eq_eras) then do Fm.Check {
@@ -1081,8 +1064,8 @@ Fm.Term.equal(a: Fm.Term, b: Fm.Term, defs: Fm.Defs, lv: Nat, seen: Set): Fm.Che
         lam: case b1 {
           lam: do Fm.Check {
               let seen = Set.set(id, seen);
-              let a1_body = a1.body(Fm.Term.xvar(a1.name, lv));
-              let b1_body = b1.body(Fm.Term.xvar(b1.name, lv));
+              let a1_body = a1.body(Fm.Term.var(a1.name, lv));
+              let b1_body = b1.body(Fm.Term.var(b1.name, lv));
               var eq_body = Fm.Term.equal(a1_body, b1_body, defs, Nat.succ(lv), seen);
               return eq_body;
             },
@@ -1106,8 +1089,8 @@ Fm.Term.equal(a: Fm.Term, b: Fm.Term, defs: Fm.Defs, lv: Nat, seen: Set): Fm.Che
         let: case b1 {
           let: do Fm.Check {
             let seen = Set.set(id, seen);
-            let a1_body = a1.body(Fm.Term.xvar(a1.name, lv));
-            let b1_body = b1.body(Fm.Term.xvar(b1.name, lv));
+            let a1_body = a1.body(Fm.Term.var(a1.name, lv));
+            let b1_body = b1.body(Fm.Term.var(b1.name, lv));
             var eq_expr = Fm.Term.equal(a1.expr, b1.expr, defs, lv, seen);
             var eq_body = Fm.Term.equal(a1_body, b1_body, defs, Nat.succ(lv), seen);
             return Bool.and(eq_expr, eq_body);
@@ -1129,101 +1112,6 @@ Fm.Term.equal(a: Fm.Term, b: Fm.Term, defs: Fm.Defs, lv: Nat, seen: Set): Fm.Che
       };
     };
   }
-      //)
-
-  //let ok = Fm.Term.identical(a, b, lv, lv);
-  //if Fm.Term.identical(a, b, lv, lv) then do Fm.Check {
-    //return Bool.true;
-  //} else do Fm.Check {
-    //let a1 = Fm.Term.reduce(a, defs);
-    //let b1 = Fm.Term.reduce(b, defs);
-    //if Fm.Term.identical(a1, b1, lv, lv) then do Fm.Check {
-      //return Bool.true;
-    //} else do Fm.Check {
-      //let ah = Fm.Term.serialize(a1, lv, lv, Bits.nil);
-      //let bh = Fm.Term.serialize(b1, lv, lv, Bits.nil);
-      //let id = Bits.concat(ah, bh);
-      //if Set.has(id, seen) then do Fm.Check {
-        //return Bool.true;
-      //} else case a1 {
-        //all: case b1 {
-          //all: do Fm.Check {
-            //let seen = Set.set(id, seen);
-            //let a1_body = a1.body(
-              //Fm.Term.xvar(a1.self, lv),
-              //Fm.Term.xvar(a1.name, Nat.succ(lv)));
-            //let b1_body = b1.body(
-              //Fm.Term.xvar(b1.self, lv),
-              //Fm.Term.xvar(b1.name, Nat.succ(lv)));
-            //let eq_self = String.eql(a1.self, b1.self);
-            //let eq_eras = Bool.eql(a1.eras, b1.eras);
-            //if Bool.and(eq_self, eq_eras) then do Fm.Check {
-              //var eq_type = Fm.Term.equal(a1.xtyp, b1.xtyp, defs, lv, seen);
-              //var eq_body = Fm.Term.equal(a1_body, b1_body, defs, Nat.succ(Nat.succ(lv)), seen);
-              //return Bool.and(eq_type, eq_body);
-            //} else do Fm.Check {
-              //return Bool.false;
-            //};
-          //},
-          //hol:
-            //Fm.Term.equal.patch(b1.path, a),
-          //_: do Fm.Check {
-            //return Bool.false;
-          //},
-        //},
-        //lam: case b1 {
-          //lam: do Fm.Check {
-              //let seen = Set.set(id, seen);
-              //let a1_body = a1.body(Fm.Term.xvar(a1.name, lv));
-              //let b1_body = b1.body(Fm.Term.xvar(b1.name, lv));
-              //var eq_body = Fm.Term.equal(a1_body, b1_body, defs, Nat.succ(lv), seen);
-              //return eq_body;
-            //},
-            //hol: Fm.Term.equal.patch(b1.path, a),
-            //_: do Fm.Check {
-              //return Bool.false;
-            //},
-          //},
-        //app: case b1 {
-          //app: do Fm.Check {
-            //let seen = Set.set(id, seen);
-            //var eq_func = Fm.Term.equal(a1.func, b1.func, defs, lv, seen);
-            //var eq_argm = Fm.Term.equal(a1.argm, b1.argm, defs, lv, seen);
-            //return Bool.and(eq_func, eq_argm);
-          //},
-          //hol: Fm.Term.equal.patch(b1.path, a),
-          //_: do Fm.Check {
-            //return Bool.false;
-          //},
-        //},
-        //let: case b1 {
-          //let: do Fm.Check {
-            //let seen = Set.set(id, seen);
-            //let a1_body = a1.body(Fm.Term.xvar(a1.name, lv));
-            //let b1_body = b1.body(Fm.Term.xvar(b1.name, lv));
-            //var eq_expr = Fm.Term.equal(a1.expr, b1.expr, defs, lv, seen);
-            //var eq_body = Fm.Term.equal(a1_body, b1_body, defs, Nat.succ(lv), seen);
-            //return Bool.and(eq_expr, eq_body);
-          //},
-          //hol:
-            //Fm.Term.equal.patch(b1.path, a),
-          //_: do Fm.Check {
-            //return Bool.false;
-          //},
-        //},
-        //hol:
-          //Fm.Term.equal.patch(a1.path, b),
-        //_: case b1 {
-          //hol: Fm.Term.equal.patch(b1.path, a),
-          //_: do Fm.Check {
-            //return Bool.false;
-          //},
-        //},
-      //};
-    //};
-  //}
-      ////)
-
 
 // Type Checking
 // =============
@@ -1264,11 +1152,12 @@ Fm.Term.check(
   defs: Fm.Defs,
   ctx: Fm.Context,
   path: Fm.MPath,
+  orig: Maybe(Fm.Origin),
 ): Fm.Check(Fm.Term)
   do Fm.Check {
     var infr = case term {
       ref: case Fm.get<_>(term.name, defs) as got {
-        none: Fm.Check.result<_>(type, [Fm.Error.undefined_reference(term.orig, term.name)]),
+        none: Fm.Check.result<_>(type, [Fm.Error.undefined_reference(orig, term.name)]),
         some: case got.value {
           new:
             let ref_name = got.value.name;
@@ -1284,24 +1173,24 @@ Fm.Term.check(
         }
       },
       var: case List.at_last<_>(term.indx, ctx) as got {
-        none: Fm.Check.result<_>(type, [Fm.Error.undefined_reference(term.orig, term.name)]),
+        none: Fm.Check.result<_>(type, [Fm.Error.undefined_reference(orig, term.name)]),
         some: do Fm.Check { return case got.value { new: got.value.snd }; },
       },
       typ: do Fm.Check {
-        return Fm.Term.xtyp;
+        return Fm.Term.typ;
       },
       all: do Fm.Check {
         let ctx_size = List.length<_>(ctx);
-        let self_var = Fm.Term.xvar(term.self, ctx_size);
-        let body_var = Fm.Term.xvar(term.name, Nat.succ(ctx_size));
+        let self_var = Fm.Term.var(term.self, ctx_size);
+        let body_var = Fm.Term.var(term.name, Nat.succ(ctx_size));
         let body_ctx = List.cons<_>({term.name,term.xtyp}, List.cons<_>({term.self,term}, ctx));
-        Fm.Term.check(term.xtyp, Maybe.some<_>(Fm.Term.xtyp), defs, ctx, Fm.MPath.0(path));
-        Fm.Term.check(term.body(self_var,body_var), Maybe.some<_>(Fm.Term.xtyp), defs, body_ctx, Fm.MPath.1(path));
-        return Fm.Term.xtyp;
+        Fm.Term.check(term.xtyp, Maybe.some<_>(Fm.Term.typ), defs, ctx, Fm.MPath.0(path), orig);
+        Fm.Term.check(term.body(self_var,body_var), Maybe.some<_>(Fm.Term.typ), defs, body_ctx, Fm.MPath.1(path), orig);
+        return Fm.Term.typ;
       },
       lam: case type {
         none: do Fm.Check {
-          Fm.Check.result<_>(type, [Fm.Error.cant_infer(term.orig, term, ctx)]);
+          Fm.Check.result<_>(type, [Fm.Error.cant_infer(orig, term, ctx)]);
         },
         some: do Fm.Check {
           let typv = Fm.Term.reduce(type.value, defs);
@@ -1309,32 +1198,32 @@ Fm.Term.check(
             all: do Fm.Check {
               let ctx_size = List.length<_>(ctx);
               let self_var = term;
-              let body_var = Fm.Term.xvar(term.name, ctx_size);
+              let body_var = Fm.Term.var(term.name, ctx_size);
               let body_typ = typv.body(self_var, body_var);
               let body_ctx = List.cons<_>({term.name,typv.xtyp}, ctx);
-              Fm.Term.check(term.body(body_var), Maybe.some<_>(body_typ), defs, body_ctx, Fm.MPath.0(path));
+              Fm.Term.check(term.body(body_var), Maybe.some<_>(body_typ), defs, body_ctx, Fm.MPath.0(path), orig);
               return type.value;
             },
             _: do Fm.Check {
               let expected = Either.left<_,_>("Function");
               let detected = Either.right<_,_>(type.value);
-              Fm.Check.result<_>(type, [Fm.Error.type_mismatch(term.orig, expected, detected, ctx)]);
+              Fm.Check.result<_>(type, [Fm.Error.type_mismatch(orig, expected, detected, ctx)]);
             }
           };
         }
       },
       app: do Fm.Check {
-        var func_typ = Fm.Term.check(term.func, Maybe.none<_>, defs, ctx, Fm.MPath.0(path));
+        var func_typ = Fm.Term.check(term.func, Maybe.none<_>, defs, ctx, Fm.MPath.0(path), orig);
         let func_typ = Fm.Term.reduce(func_typ, defs);
         case func_typ {
           all: do Fm.Check {
-            Fm.Term.check(term.argm, Maybe.some<_>(func_typ.xtyp), defs, ctx, Fm.MPath.1(path));
+            Fm.Term.check(term.argm, Maybe.some<_>(func_typ.xtyp), defs, ctx, Fm.MPath.1(path), orig);
             return func_typ.body(term.func, term.argm);
           },
           _: do Fm.Check {
             let expected = Either.left<_,_>("Function");
             let detected = Either.right<_,_>(func_typ);
-            Fm.Check.result<_>(type, [Fm.Error.type_mismatch(term.orig, expected, detected, ctx)]);
+            Fm.Check.result<_>(type, [Fm.Error.type_mismatch(orig, expected, detected, ctx)]);
           },
         };
       },
@@ -1342,36 +1231,36 @@ Fm.Term.check(
         if term.done then do Fm.Check {
           return term.type;
         } else do Fm.Check {
-          Fm.Term.check(term.term, Maybe.some<_>(term.type), defs, ctx, Fm.MPath.0(path));
-          Fm.Term.check(term.type, Maybe.some<_>(Fm.Term.xtyp), defs, ctx, Fm.MPath.1(path));
+          Fm.Term.check(term.term, Maybe.some<_>(term.type), defs, ctx, Fm.MPath.0(path), orig);
+          Fm.Term.check(term.type, Maybe.some<_>(Fm.Term.typ), defs, ctx, Fm.MPath.1(path), orig);
           return term.type;
         },
       let: do Fm.Check {
         let ctx_size = List.length<_>(ctx);
-        var expr_typ = Fm.Term.check(term.expr, Maybe.none<_>, defs, ctx, Fm.MPath.0(path));
-        let body_val = term.body(Fm.Term.xvar(term.name, ctx_size));
+        var expr_typ = Fm.Term.check(term.expr, Maybe.none<_>, defs, ctx, Fm.MPath.0(path), orig);
+        let body_val = term.body(Fm.Term.var(term.name, ctx_size));
         let body_ctx = List.cons<_>({term.name, expr_typ}, ctx);
-        var body_typ = Fm.Term.check(body_val, type, defs, body_ctx, Fm.MPath.1(path));
+        var body_typ = Fm.Term.check(body_val, type, defs, body_ctx, Fm.MPath.1(path), orig);
         return body_typ;
       },
       def: do Fm.Check {
-        Fm.Term.check(term.body(term.expr), type, defs, ctx, path);
+        Fm.Term.check(term.body(term.expr), type, defs, ctx, path, orig);
       },
       nat: do Fm.Check {
-        return Fm.Term.xref("Nat");
+        return Fm.Term.ref("Nat");
       },
       chr: do Fm.Check {
-        return Fm.Term.xref("Char");
+        return Fm.Term.ref("Char");
       },
       str: do Fm.Check {
-        return Fm.Term.xref("String");
+        return Fm.Term.ref("String");
       },
       cse: do Fm.Check {
         let expr = term.expr;
-        var etyp = Fm.Term.check(expr, Maybe.none<_>, defs, ctx, Fm.MPath.0(path));
+        var etyp = Fm.Term.check(expr, Maybe.none<_>, defs, ctx, Fm.MPath.0(path), orig);
         let dsug = Fm.Term.desugar_cse(term.expr, term.name, term.with, term.cses, term.moti, etyp, defs, ctx);
         case dsug {
-          none: Fm.Check.result<_>(type, [Fm.Error.cant_infer(term.orig, term, ctx)]),
+          none: Fm.Check.result<_>(type, [Fm.Error.cant_infer(orig, term, ctx)]),
           some: Fm.Check.result<_>(type, [Fm.Error.patch(Fm.MPath.to_bits(path),dsug.value)]),
         };
       },
@@ -1383,6 +1272,9 @@ Fm.Term.check(
       hol: do Fm.Check {
         Fm.Check.result<_>(type, []);
       },
+      ori: do Fm.Check {
+        Fm.Term.check(term.expr, type, defs, ctx, path, Maybe.some<_>(term.orig));
+      },
     };
     case type {
       none:
@@ -1393,7 +1285,7 @@ Fm.Term.check(
           return type.value;
         } else Fm.Check.result<_>(type, [
           Fm.Error.type_mismatch(
-            Fm.Term.origin(term),
+            orig,
             Either.right<_,_>(type.value),
             Either.right<_,_>(infr),
             ctx)
@@ -1459,8 +1351,8 @@ Fm.Synth.one(name: Fm.Name, defs: Fm.Defs): Fm.Defs
           init:
             let defs = Fm.set<_>(name, Fm.Def.new(file, name, term, type, Fm.Status.wait), defs);
             let checked = do Fm.Check {
-              var chk_type = Fm.Term.check(type, Maybe.some<_>(Fm.Term.xtyp), defs, [], Fm.MPath.1(Fm.MPath.nil));
-              var chk_term = Fm.Term.check(term, Maybe.some<_>(type), defs, [], Fm.MPath.0(Fm.MPath.nil));
+              var chk_type = Fm.Term.check(type, Maybe.some<_>(Fm.Term.typ), defs, [], Fm.MPath.1(Fm.MPath.nil), Maybe.none<_>);
+              var chk_term = Fm.Term.check(term, Maybe.some<_>(type), defs, [], Fm.MPath.0(Fm.MPath.nil), Maybe.none<_>);
               return Unit.new;
             };
             case checked {
@@ -1499,21 +1391,92 @@ Fm.Synth.one(name: Fm.Name, defs: Fm.Defs): Fm.Defs
 
 // Synths all defs of specific file
 Fm.Synth.file(file: String, defs: Fm.Defs): Fm.Defs
-  for def in Map.values<_>(defs) with defs:
-    case def {
+  for defn in Map.values<_>(defs) with defs:
+    case defn {
       new: 
-        if String.eql(def.file, file) then
-          Fm.Synth.one(def.name, defs)
+        if String.eql(defn.file, file) then
+          Fm.Synth.one(defn.name, defs)
         else
           defs
     }
 
 // Synths all defs
 Fm.Synth.all(defs: Fm.Defs): Fm.Defs
-  for def in Map.values<_>(defs) with defs:
-    case def {
-      new: Fm.Synth.one(def.name, defs)
+  for defn in Map.values<_>(defs) with defs:
+    case defn {
+      new: Fm.Synth.one(defn.name, defs)
     }
+
+Fm.Synth.load.undefs(errors: List(Fm.Error)): List(String)
+  case errors {
+    nil: List.nil<_>,
+    cons:
+      let tail = Fm.Synth.load.undefs(errors.tail);
+      case errors.head {
+        undefined_reference: List.cons<_>(errors.head.name, tail),
+        _: tail,
+      }
+  }
+
+Fm.Synth.file_of(name: Fm.Name): String
+  case name {
+    nil:
+      ".fmfm"
+    cons:
+      if U16.eql(name.head, '.') then
+        ".fmfm"
+      else
+        String.cons(name.head, Fm.Synth.file_of(name.tail))
+  }
+
+//Fm.load.many(names: List(Fm.Name), defs: Fm.Defs): IO(Fm.Defs)
+  //case names {
+    //nil: do IO {
+      //return defs;
+    //},
+    //cons: do IO {
+      //var defs = Fm.load(names.head, defs);
+      //Fm.load.many(names.tail, defs);
+    //}
+  //}
+
+//Fm.load(name: Fm.Name, defs: Fm.Defs): IO(Fm.Defs)
+  //let skip = Debug.log<_>(String.flatten(["load_name ", name]), (x) Unit.new);
+  //let defs = Fm.Synth.one(name, defs);
+  //case Fm.get<_>(name, defs) as got {
+    //some: case got.value {
+      //new: case got.value.stat {
+        //init: do IO { return defs; },
+        //wait: do IO { return defs; },
+        //done: do IO { return defs; },
+        //fail: do IO {
+          //let undefs = Fm.load.undefs(got.value.stat.errors);
+          //let defs = Fm.load.many(undefs, defs);
+          //var defs = Fm.load(name, defs);
+          //return defs;
+        //}
+      //}
+    //},
+    //none: do IO {
+      //let file = Fm.Synth.file_of(name);
+      //let skip = Debug.log<_>(String.flatten(["load_file ", file]), (x) Unit.new);
+      //var code = IO.get_file(file);
+      //case code {
+        //nil: do IO {
+          //return defs;
+        //},
+        //cons: do IO {
+          //let defs = Fm.Defs.read(file, code, defs);
+          //case Fm.get<_>(name, defs) as got {
+            //none: do IO {
+              //return defs;
+            //},
+            //some: Fm.load(name, defs)
+          //};
+        //}
+      //};
+    //}
+  //}
 
 // Sugars
 // ======
@@ -1522,41 +1485,41 @@ Fm.Synth.all(defs: Fm.Defs): Fm.Defs
 Fm.Term.unroll_nat(natx: Nat): Fm.Term
   case natx {
     zero:
-      Fm.Term.xref(Fm.Name.read("Nat.zero")),
+      Fm.Term.ref(Fm.Name.read("Nat.zero")),
     succ:
-      let func = Fm.Term.xref(Fm.Name.read("Nat.succ"));
-      let argm = Fm.Term.xnat(natx.pred);
-      Fm.Term.xapp(func, argm),
+      let func = Fm.Term.ref(Fm.Name.read("Nat.succ"));
+      let argm = Fm.Term.nat(natx.pred);
+      Fm.Term.app(func, argm),
   }
 
 // Unrolls a character
 Fm.Term.unroll_chr(chrx: Char): Fm.Term
   case chrx {
     new: 
-      let term = Fm.Term.xref(Fm.Name.read("Word.from_bits"));
-      let term = Fm.Term.xapp(term, Fm.Term.xnat(16));
-      let term = Fm.Term.xapp(term, Fm.Term.unroll_chr.bits(Word.to_bits<16>(chrx.value)));
-      let term = Fm.Term.xapp(Fm.Term.xref(Fm.Name.read("U16.new")), term);
+      let term = Fm.Term.ref(Fm.Name.read("Word.from_bits"));
+      let term = Fm.Term.app(term, Fm.Term.nat(16));
+      let term = Fm.Term.app(term, Fm.Term.unroll_chr.bits(Word.to_bits<16>(chrx.value)));
+      let term = Fm.Term.app(Fm.Term.ref(Fm.Name.read("U16.new")), term);
       term
   }
 
 Fm.Term.unroll_chr.bits(bits: Bits): Fm.Term
   case bits {
-    nil: Fm.Term.xref(Fm.Name.read("Bits.nil")),
-    0: Fm.Term.xapp(Fm.Term.xref(Fm.Name.read("Bits.0")), Fm.Term.unroll_chr.bits(bits.pred)),
-    1: Fm.Term.xapp(Fm.Term.xref(Fm.Name.read("Bits.1")), Fm.Term.unroll_chr.bits(bits.pred)),
+    nil: Fm.Term.ref(Fm.Name.read("Bits.nil")),
+    0: Fm.Term.app(Fm.Term.ref(Fm.Name.read("Bits.0")), Fm.Term.unroll_chr.bits(bits.pred)),
+    1: Fm.Term.app(Fm.Term.ref(Fm.Name.read("Bits.1")), Fm.Term.unroll_chr.bits(bits.pred)),
   }
 
 // Unrolls a string
 Fm.Term.unroll_str(strx: String): Fm.Term
   case strx {
     nil:
-      Fm.Term.xref(Fm.Name.read("String.nil")),
+      Fm.Term.ref(Fm.Name.read("String.nil")),
     cons:
-      let char = Fm.Term.xchr(strx.head);
-      let term = Fm.Term.xref(Fm.Name.read("String.cons"));
-      let term = Fm.Term.xapp(term, char);
-      let term = Fm.Term.xapp(term, Fm.Term.xstr(strx.tail));
+      let char = Fm.Term.chr(strx.head);
+      let term = Fm.Term.ref(Fm.Name.read("String.cons"));
+      let term = Fm.Term.app(term, char);
+      let term = Fm.Term.app(term, Fm.Term.str(strx.tail));
       term,
   }
 
@@ -1575,8 +1538,8 @@ Fm.Term.desugar_cse(
     all:
       let moti = Fm.Term.desugar_cse.motive(with, moti);
       let argm = Fm.Term.desugar_cse.argument(name, [], type.xtyp, moti, defs);
-      let expr = Fm.Term.xapp(expr, argm);
-      let type = type.body(Fm.Term.xvar(type.self,0), Fm.Term.xvar(type.name,0));
+      let expr = Fm.Term.app(expr, argm);
+      let type = type.body(Fm.Term.var(type.self,0), Fm.Term.var(type.name,0));
       Maybe.some<_>(Fm.Term.desugar_cse.cases(expr, name, with, cses, type, defs, ctxt)),
     _:
       Maybe.none<_>,
@@ -1598,18 +1561,18 @@ Fm.Term.desugar_cse.cases(
       case got {
         some:
           let argm = Fm.Term.desugar_cse.argument(name, wyth, type.xtyp, got.value, defs);
-          let expr = Fm.Term.xapp(expr, argm);
-          let type = type.body(Fm.Term.xvar(type.self,0), Fm.Term.xvar(type.name,0));
+          let expr = Fm.Term.app(expr, argm);
+          let type = type.body(Fm.Term.var(type.self,0), Fm.Term.var(type.name,0));
           Fm.Term.desugar_cse.cases(expr, name, wyth, cses, type, defs, ctxt),
         none: 
-          for def in wyth with expr:
-            case def {
-              new: Fm.Term.xapp(expr, def.term)
+          for defn in wyth with expr:
+            case defn {
+              new: Fm.Term.app(expr, defn.term)
             },
       },
     _:
-      for def in wyth with expr:
-        Fm.Term.xapp(expr, case def { new: def.term }),
+      for defn in wyth with expr:
+        Fm.Term.app(expr, case defn { new: defn.term }),
   }
 
 // Extends a type with motive variables
@@ -1623,7 +1586,7 @@ Fm.Term.desugar_cse.motive(
         def all_name = wyth.head.name;
         def all_xtyp = wyth.head.type;
         def all_body = (s,x) Fm.Term.desugar_cse.motive(wyth.tail, moti);
-        Fm.Term.xall(Bool.false, "", all_name, all_xtyp, all_body)
+        Fm.Term.all(Bool.false, "", all_name, all_xtyp, all_body)
     },
     nil: moti,
   }
@@ -1638,20 +1601,20 @@ Fm.Term.desugar_cse.argument(
 ): Fm.Term
   case Fm.Term.reduce(type, defs) as type {
     all:
-      def type = type.body(Fm.Term.xvar(type.self,0), Fm.Term.xvar(type.name,0));
+      def type = type.body(Fm.Term.var(type.self,0), Fm.Term.var(type.name,0));
       def lam_name =
         if String.is_empty(type.name) then
           name
         else
           String.flatten([name, ".", type.name]);
       def lam_body = (x) Fm.Term.desugar_cse.argument(name, wyth, type, body, defs);
-      Fm.Term.xlam(lam_name, lam_body),
+      Fm.Term.lam(lam_name, lam_body),
     _: case wyth {
       cons: case wyth.head {
         new:
           def lam_name = wyth.head.name;
           def lam_body = (x) Fm.Term.desugar_cse.argument(name, wyth.tail, type, body, defs);
-          Fm.Term.xlam(lam_name, lam_body)
+          Fm.Term.lam(lam_name, lam_body)
       },
       nil: body,
     }
@@ -1676,7 +1639,7 @@ Fm.Datatype.build_type.go(
         def par_name = pars.head.name;
         def par_xtyp = pars.head.term;
         def par_body = (s,x) Fm.Datatype.build_type.go(type, name, pars.tail, inds);
-        Fm.Term.xall(Bool.false, "", par_name, par_xtyp, par_body)
+        Fm.Term.all(Bool.false, "", par_name, par_xtyp, par_body)
     },
     nil: case inds {
       cons: case inds.head {
@@ -1685,9 +1648,9 @@ Fm.Datatype.build_type.go(
           def ind_name = inds.head.name;
           def ind_xtyp = inds.head.term;
           def ind_body = (s,x) Fm.Datatype.build_type.go(type, name, pars, inds.tail);
-          Fm.Term.xall(Bool.false, "", ind_name, ind_xtyp, ind_body)
+          Fm.Term.all(Bool.false, "", ind_name, ind_xtyp, ind_body)
       },
-      nil: Fm.Term.xtyp,
+      nil: Fm.Term.typ,
     }
   }
 
@@ -1711,17 +1674,17 @@ Fm.Datatype.build_term.motive.go(
         def ind_name = inds.head.name;
         def ind_xtyp = inds.head.term;
         def ind_body = (s,x) Fm.Datatype.build_term.motive.go(type, name, inds.tail);
-        Fm.Term.xall(ind_eras, "", ind_name, ind_xtyp, ind_body),
+        Fm.Term.all(ind_eras, "", ind_name, ind_xtyp, ind_body),
     },
     nil:
       case type {
         new:
-          let slf = Fm.Term.xref(name);
+          let slf = Fm.Term.ref(name);
           let slf = for var in type.pars:
-            Fm.Term.xapp(slf, Fm.Term.xref(case var { new: var.name }));
+            Fm.Term.app(slf, Fm.Term.ref(case var { new: var.name }));
           let slf = for var in type.inds:
-            Fm.Term.xapp(slf, Fm.Term.xref(case var { new: var.name }));
-          Fm.Term.xall(Bool.false, "", "", slf, (s,x) Fm.Term.xtyp)
+            Fm.Term.app(slf, Fm.Term.ref(case var { new: var.name }));
+          Fm.Term.all(Bool.false, "", "", slf, (s,x) Fm.Term.typ)
       }
   }
 
@@ -1738,7 +1701,7 @@ Fm.Datatype.build_term.constructors.go(
 ): Fm.Term
   case ctrs {
     cons: case ctrs.head {
-      new: Fm.Term.xall(Bool.false, "",
+      new: Fm.Term.all(Bool.false, "",
         ctrs.head.name,
         Fm.Datatype.build_term.constructor(type, ctrs.head),
         (s,x) Fm.Datatype.build_term.constructors.go(type, name, ctrs.tail))
@@ -1746,10 +1709,10 @@ Fm.Datatype.build_term.constructors.go(
     nil:
       case type {
         new:
-          let ret = Fm.Term.xref(Fm.Name.read("P"));
+          let ret = Fm.Term.ref(Fm.Name.read("P"));
           let ret = for var in type.inds:
-            Fm.Term.xapp(ret, Fm.Term.xref(case var { new: var.name }));
-          Fm.Term.xapp(ret, Fm.Term.xref(String.concat(name,".Self")))
+            Fm.Term.app(ret, Fm.Term.ref(case var { new: var.name }));
+          Fm.Term.app(ret, Fm.Term.ref(String.concat(name,".Self")))
       }
   }
 
@@ -1771,22 +1734,22 @@ Fm.Datatype.build_term.constructor.go(
         let name = args.head.name;
         let xtyp = args.head.term;
         let body = Fm.Datatype.build_term.constructor.go(type, ctor, args.tail);
-        Fm.Term.xall(eras, "", name, xtyp, (s,x) body)
+        Fm.Term.all(eras, "", name, xtyp, (s,x) body)
     },
     nil:
       case type {
         new: case ctor {
           new:
-            let ret = Fm.Term.xref(Fm.Name.read("P"));
+            let ret = Fm.Term.ref(Fm.Name.read("P"));
             let ret = for var in ctor.inds:
-              Fm.Term.xapp(ret, case var { new: var.term });
+              Fm.Term.app(ret, case var { new: var.term });
             let ctr = String.flatten([type.name,Fm.Name.read("."),ctor.name]);
-            let slf = Fm.Term.xref(ctr);
+            let slf = Fm.Term.ref(ctr);
             let slf = for var in type.pars:
-              Fm.Term.xapp(slf, Fm.Term.xref(case var { new: var.name }));
+              Fm.Term.app(slf, Fm.Term.ref(case var { new: var.name }));
             let slf = for var in ctor.args:
-              Fm.Term.xapp(slf, Fm.Term.xref(case var { new: var.name }));
-            Fm.Term.xapp(ret, slf)
+              Fm.Term.app(slf, Fm.Term.ref(case var { new: var.name }));
+            Fm.Term.app(ret, slf)
         }
       }
   }
@@ -1808,19 +1771,19 @@ Fm.Datatype.build_term.go(
       new:
         def par_name = pars.head.name;
         def par_body = (x) Fm.Datatype.build_term.go(type, name, pars.tail, inds);
-        Fm.Term.xlam(par_name, par_body),
+        Fm.Term.lam(par_name, par_body),
     },
     nil: case inds {
       cons: case inds.head {
         new:
           def ind_name = inds.head.name;
           def ind_body = (x) Fm.Datatype.build_term.go(type, name, pars, inds.tail);
-          Fm.Term.xlam(ind_name, ind_body),
+          Fm.Term.lam(ind_name, ind_body),
       },
       nil: 
         def moti = Fm.Datatype.build_term.motive(type);
         def body = (s,x) Fm.Datatype.build_term.constructors(type); // TODO
-        Fm.Term.xall(Bool.true, String.concat(name,".Self"), Fm.Name.read("P"), moti, body)
+        Fm.Term.all(Bool.true, String.concat(name,".Self"), Fm.Name.read("P"), moti, body)
     }
   }
 
@@ -1850,7 +1813,7 @@ Fm.Constructor.build_type.go(
         def pars_name = pars.head.name;
         def pars_xtyp = pars.head.term;
         def pars_body = (s,x) Fm.Constructor.build_type.go(type, ctor, name, pars.tail, args);
-        Fm.Term.xall(pars_eras, "", pars_name, pars_xtyp, pars_body),
+        Fm.Term.all(pars_eras, "", pars_name, pars_xtyp, pars_body),
     },
     nil: case args {
       cons: case args.head {
@@ -1859,16 +1822,16 @@ Fm.Constructor.build_type.go(
           def ctr_name = args.head.name;
           def ctr_xtyp = args.head.term;
           def ctr_body = (s,x) Fm.Constructor.build_type.go(type, ctor, name, pars, args.tail);
-          Fm.Term.xall(ctr_eras, "", ctr_name, ctr_xtyp, ctr_body),
+          Fm.Term.all(ctr_eras, "", ctr_name, ctr_xtyp, ctr_body),
       },
       nil: case type {
         new: case ctor {
           new:
-            let type = Fm.Term.xref(name);
+            let type = Fm.Term.ref(name);
             let type = for var in type.pars:
-              Fm.Term.xapp(type, Fm.Term.xref(case var { new: var.name }));
+              Fm.Term.app(type, Fm.Term.ref(case var { new: var.name }));
             let type = for var in ctor.inds:
-              Fm.Term.xapp(type, case var { new: var.term });
+              Fm.Term.app(type, case var { new: var.term });
             type,
         }
       }
@@ -1890,14 +1853,14 @@ Fm.Constructor.build_term.opt.go(
       new:
         def name = ctrs.head.name;
         def body = (x) Fm.Constructor.build_term.opt.go(type, ctor, ctrs.tail);
-        Fm.Term.xlam(name, body)
+        Fm.Term.lam(name, body)
     },
     nil: 
       case ctor {
         new:
-          let ret = Fm.Term.xref(ctor.name);
+          let ret = Fm.Term.ref(ctor.name);
           let ret = for arg in ctor.args:
-            Fm.Term.xapp(ret, Fm.Term.xref(case arg { new: arg.name }));
+            Fm.Term.app(ret, Fm.Term.ref(case arg { new: arg.name }));
           ret
       },
   }
@@ -1921,19 +1884,19 @@ Fm.Constructor.build_term.go(
       new:
         def par_name = pars.head.name;
         def par_body = (x) Fm.Constructor.build_term.go(type, ctor, name, pars.tail, args);
-        Fm.Term.xlam(par_name, par_body),
+        Fm.Term.lam(par_name, par_body),
     },
     nil: case args {
       cons: case args.head {
         new:
           def ctr_name = args.head.name;
           def ctr_body = (x) Fm.Constructor.build_term.go(type, ctor, name, pars, args.tail);
-          Fm.Term.xlam(ctr_name, ctr_body),
+          Fm.Term.lam(ctr_name, ctr_body),
       },
       nil:
         def lam_name = Fm.Name.read("P");
         def lam_body = (x) Fm.Constructor.build_term.opt(type, ctor);
-        Fm.Term.xlam(lam_name, lam_body),
+        Fm.Term.lam(lam_name, lam_body),
     }
   }
 
@@ -2058,10 +2021,10 @@ Fm.Parser.init: Parser(Nat)
     return from;
   }
 
-Fm.Parser.stop(from: Nat): Parser(Maybe(Fm.Origin))
+Fm.Parser.stop(from: Nat): Parser(Fm.Origin)
   do Parser {
     var upto = Parser.get_index;
-    let orig = Maybe.some<_>(Fm.Origin.new("", from, upto));
+    let orig = Fm.Origin.new("", from, upto);
     return orig;
   }
 
@@ -2105,7 +2068,7 @@ Fm.Parser.type: Parser(Fm.Term)
     var init = Fm.Parser.init;
     Fm.Parser.text("Type");
     var orig = Fm.Parser.stop(init);
-    return Fm.Term.typ(orig);
+    return Fm.Term.ori(orig, Fm.Term.typ);
   }
 
 // Parses a lambda (erased): @<name> body@
@@ -2118,8 +2081,8 @@ Fm.Parser.lambda.erased: Parser(Fm.Term)
       Fm.Parser.item<_>(Fm.Parser.name1));
     var body = Fm.Parser.term;
     var orig = Fm.Parser.stop(init);
-    let expr = Fm.Parser.make_lambda(orig, name, body);
-    return expr;
+    let expr = Fm.Parser.make_lambda(name, body);
+    return Fm.Term.ori(orig, expr);
   }
 
 // Parses a lambda: @(name) body@
@@ -2132,8 +2095,8 @@ Fm.Parser.lambda: Parser(Fm.Term)
       Fm.Parser.item<_>(Fm.Parser.name1));
     var body = Fm.Parser.term;
     var orig = Fm.Parser.stop(init);
-    let expr = Fm.Parser.make_lambda(orig, name, body);
-    return expr;
+    let expr = Fm.Parser.make_lambda(name, body);
+    return Fm.Term.ori(orig, expr);
   }
 
 // Parses a parenthesis: @(term)@
@@ -2185,11 +2148,11 @@ Fm.Parser.forall: Parser(Fm.Term)
     Parser.maybe<_>(Fm.Parser.text("->"));
     var body = Fm.Parser.term;
     let term = List.fold<_>(bind)<_>(body, (x,t) case x {
-      new: Fm.Term.xall(x.eras, "", x.name, x.term, (s,x) t)
+      new: Fm.Term.all(x.eras, "", x.name, x.term, (s,x) t)
     });
     var orig = Fm.Parser.stop(init);
     return case term {
-      all: Fm.Term.all(orig, term.eras, self, term.name, term.xtyp, term.body),
+      all: Fm.Term.ori(orig, Fm.Term.all(term.eras, self, term.name, term.xtyp, term.body)),
       _: term,
     };
   }
@@ -2205,7 +2168,7 @@ Fm.Parser.let: Parser(Fm.Term)
     Parser.maybe<_>(Fm.Parser.text(";"));
     var body = Fm.Parser.term;
     var orig = Fm.Parser.stop(init);
-    return Fm.Term.let(orig, name, expr, (x) body);
+    return Fm.Term.ori(orig, Fm.Term.let(name, expr, (x) body));
   }
 
 // Parses a def: @def name = expr; body@
@@ -2219,7 +2182,7 @@ Fm.Parser.def: Parser(Fm.Term)
     Parser.maybe<_>(Fm.Parser.text(";"));
     var body = Fm.Parser.term;
     var orig = Fm.Parser.stop(init);
-    return Fm.Term.def(orig, name, expr, (x) body);
+    return Fm.Term.ori(orig, Fm.Term.def(name, expr, (x) body));
   }
 
 // Parses an if-then-else: @if b then t else f@
@@ -2234,10 +2197,10 @@ Fm.Parser.if: Parser(Fm.Term)
     var fcse = Fm.Parser.term;
     var orig = Fm.Parser.stop(init);
     let term = cond;
-    let term = Fm.Term.xapp(term, Fm.Term.xlam("", (x) Fm.Term.xhol(Bits.nil)));
-    let term = Fm.Term.xapp(term, tcse);
-    let term = Fm.Term.app(orig, term, fcse);
-    return term;
+    let term = Fm.Term.app(term, Fm.Term.lam("", (x) Fm.Term.hol(Bits.nil)));
+    let term = Fm.Term.app(term, tcse);
+    let term = Fm.Term.app(term, fcse);
+    return Fm.Term.ori(orig, term);
   }
 
 // Parses a single char
@@ -2260,7 +2223,7 @@ Fm.Parser.char: Parser(Fm.Term)
     var chrx = Fm.Parser.char.single;
     Parser.text("'");
     var orig = Fm.Parser.stop(init);
-    return Fm.Term.chr(orig, chrx);
+    return Fm.Term.ori(orig, Fm.Term.chr(chrx));
   }
 
 // Parses a string literal: @"foo"@
@@ -2272,7 +2235,7 @@ Fm.Parser.string: Parser(Fm.Term)
     var chrs = Parser.until<_>(Parser.text(quot), Fm.Parser.char.single);
     let strx = List.fold<_>(chrs)<_>(String.nil, String.cons);
     var orig = Fm.Parser.stop(init);
-    return Fm.Term.str(orig, strx);
+    return Fm.Term.ori(orig, Fm.Term.str(strx));
   }
 
 // Parses a pair literal: @{1, 2}@
@@ -2285,12 +2248,12 @@ Fm.Parser.pair: Parser(Fm.Term)
     var val1 = Fm.Parser.term;
     Fm.Parser.text("}");
     var orig = Fm.Parser.stop(init);
-    let term = Fm.Term.xref("Pair.new");
-    let term = Fm.Term.xapp(term, Fm.Term.xhol(Bits.nil));
-    let term = Fm.Term.xapp(term, Fm.Term.xhol(Bits.nil));
-    let term = Fm.Term.xapp(term, val0);
-    let term = Fm.Term.app(orig, term, val1);
-    return term;
+    let term = Fm.Term.ref("Pair.new");
+    let term = Fm.Term.app(term, Fm.Term.hol(Bits.nil));
+    let term = Fm.Term.app(term, Fm.Term.hol(Bits.nil));
+    let term = Fm.Term.app(term, val0);
+    let term = Fm.Term.app(term, val1);
+    return Fm.Term.ori(orig, term);
   }
 
 // Parses a list literal: @[1, 2, 3]@
@@ -2303,13 +2266,13 @@ Fm.Parser.list: Parser(Fm.Term)
       Fm.Parser.item<_>(Fm.Parser.term));
     var orig = Fm.Parser.stop(init);
     return List.fold<_>(vals)<_>(
-      Fm.Term.xapp(Fm.Term.xref(Fm.Name.read("List.nil")), Fm.Term.xhol(Bits.nil)),
+      Fm.Term.app(Fm.Term.ref(Fm.Name.read("List.nil")), Fm.Term.hol(Bits.nil)),
       (x,xs)
-        let term = Fm.Term.xref(Fm.Name.read("List.cons"));
-        let term = Fm.Term.xapp(term, Fm.Term.xhol(Bits.nil));
-        let term = Fm.Term.xapp(term, x);
-        let term = Fm.Term.app(orig, term, xs);
-        term);
+        let term = Fm.Term.ref(Fm.Name.read("List.cons"));
+        let term = Fm.Term.app(term, Fm.Term.hol(Bits.nil));
+        let term = Fm.Term.app(term, x);
+        let term = Fm.Term.app(term, xs);
+        Fm.Term.ori(orig, term));
   }
 
 // Parses a for-in expression
@@ -2325,15 +2288,15 @@ Fm.Parser.forin: Parser(Fm.Term)
     Fm.Parser.text(":");
     var loop = Fm.Parser.term;
     var orig = Fm.Parser.stop(init);
-    let term = Fm.Term.xref("List.for");
-    let term = Fm.Term.xapp(term, Fm.Term.xhol(Bits.nil));
-    let term = Fm.Term.xapp(term, list);
-    let term = Fm.Term.xapp(term, Fm.Term.xhol(Bits.nil));
-    let term = Fm.Term.xapp(term, Fm.Term.xref(name));
-    let lamb = Fm.Term.xlam(elem, (i) Fm.Term.xlam(name, (x) loop));
-    let term = Fm.Term.xapp(term, lamb);
-    let term = Fm.Term.let(orig, name, term, (x) Fm.Term.xref(name));
-    return term;
+    let term = Fm.Term.ref("List.for");
+    let term = Fm.Term.app(term, Fm.Term.hol(Bits.nil));
+    let term = Fm.Term.app(term, list);
+    let term = Fm.Term.app(term, Fm.Term.hol(Bits.nil));
+    let term = Fm.Term.app(term, Fm.Term.ref(name));
+    let lamb = Fm.Term.lam(elem, (i) Fm.Term.lam(name, (x) loop));
+    let term = Fm.Term.app(term, lamb);
+    let term = Fm.Term.let(name, term, (x) Fm.Term.ref(name));
+    return Fm.Term.ori(orig, term);
   }
 
 // Parses a let-for-in expression
@@ -2352,15 +2315,15 @@ Fm.Parser.letforin: Parser(Fm.Term)
     Fm.Parser.text(";");
     var body = Fm.Parser.term;
     var orig = Fm.Parser.stop(init);
-    let term = Fm.Term.xref("List.for");
-    let term = Fm.Term.xapp(term, Fm.Term.xhol(Bits.nil));
-    let term = Fm.Term.xapp(term, list);
-    let term = Fm.Term.xapp(term, Fm.Term.xhol(Bits.nil));
-    let term = Fm.Term.xapp(term, Fm.Term.xref(name));
-    let lamb = Fm.Term.xlam(elem, (i) Fm.Term.xlam(name, (x) loop));
-    let term = Fm.Term.xapp(term, lamb);
-    let term = Fm.Term.let(orig, name, term, (x) body);
-    return term;
+    let term = Fm.Term.ref("List.for");
+    let term = Fm.Term.app(term, Fm.Term.hol(Bits.nil));
+    let term = Fm.Term.app(term, list);
+    let term = Fm.Term.app(term, Fm.Term.hol(Bits.nil));
+    let term = Fm.Term.app(term, Fm.Term.ref(name));
+    let lamb = Fm.Term.lam(elem, (i) Fm.Term.lam(name, (x) loop));
+    let term = Fm.Term.app(term, lamb);
+    let term = Fm.Term.let(name, term, (x) body);
+    return Fm.Term.ori(orig, term);
   }
 
 // Parses statements of the do-notation
@@ -2376,13 +2339,13 @@ Fm.Parser.do.statements(monad_name: Fm.Name): Parser(Fm.Term)
       Fm.Parser.text(";");
       var body = Fm.Parser.do.statements(monad_name);
       var orig = Fm.Parser.stop(init);
-      let term = Fm.Term.xapp(Fm.Term.xref("Monad.bind"), Fm.Term.xref(monad_name));
-      let term = Fm.Term.xapp(term, Fm.Term.xref(String.concat(monad_name, ".monad")));
-      let term = Fm.Term.xapp(term, Fm.Term.xhol(Bits.nil));
-      let term = Fm.Term.xapp(term, Fm.Term.xhol(Bits.nil));
-      let term = Fm.Term.xapp(term, expr);
-      let term = Fm.Term.app(orig, term, Fm.Term.xlam(name, (x) body));
-      return term;
+      let term = Fm.Term.app(Fm.Term.ref("Monad.bind"), Fm.Term.ref(monad_name));
+      let term = Fm.Term.app(term, Fm.Term.ref(String.concat(monad_name, ".monad")));
+      let term = Fm.Term.app(term, Fm.Term.hol(Bits.nil));
+      let term = Fm.Term.app(term, Fm.Term.hol(Bits.nil));
+      let term = Fm.Term.app(term, expr);
+      let term = Fm.Term.app(term, Fm.Term.lam(name, (x) body));
+      return Fm.Term.ori(orig, term);
     },
     // Local definition (let): @let x = expr; rest@
     do Parser {
@@ -2394,7 +2357,7 @@ Fm.Parser.do.statements(monad_name: Fm.Name): Parser(Fm.Term)
       Fm.Parser.text(";");
       var body = Fm.Parser.do.statements(monad_name);
       var orig = Fm.Parser.stop(init);
-      return Fm.Term.let(orig, name, expr, (x) body);
+      return Fm.Term.ori(orig, Fm.Term.let(name, expr, (x) body));
     },
     // Return pure: @return expr;@
     do Parser {
@@ -2403,11 +2366,11 @@ Fm.Parser.do.statements(monad_name: Fm.Name): Parser(Fm.Term)
       var expr = Fm.Parser.term;
       Fm.Parser.text(";");
       var orig = Fm.Parser.stop(init);
-      let term = Fm.Term.xapp(Fm.Term.xref("Monad.pure"), Fm.Term.xref(monad_name));
-      let term = Fm.Term.xapp(term, Fm.Term.xref(String.concat(monad_name, ".monad")));
-      let term = Fm.Term.xapp(term, Fm.Term.xhol(Bits.nil));
-      let term = Fm.Term.app(orig, term, expr);
-      return term;
+      let term = Fm.Term.app(Fm.Term.ref("Monad.pure"), Fm.Term.ref(monad_name));
+      let term = Fm.Term.app(term, Fm.Term.ref(String.concat(monad_name, ".monad")));
+      let term = Fm.Term.app(term, Fm.Term.hol(Bits.nil));
+      let term = Fm.Term.app(term, expr);
+      return Fm.Term.ori(orig, term);
     },
     // Non-binding call: @expr; rest@
     do Parser {
@@ -2416,13 +2379,13 @@ Fm.Parser.do.statements(monad_name: Fm.Name): Parser(Fm.Term)
       Fm.Parser.text(";");
       var body = Fm.Parser.do.statements(monad_name);
       var orig = Fm.Parser.stop(init);
-      let term = Fm.Term.xapp(Fm.Term.xref("Monad.bind"), Fm.Term.xref(monad_name));
-      let term = Fm.Term.xapp(term, Fm.Term.xref(String.concat(monad_name, ".monad")));
-      let term = Fm.Term.xapp(term, Fm.Term.xhol(Bits.nil));
-      let term = Fm.Term.xapp(term, Fm.Term.xhol(Bits.nil));
-      let term = Fm.Term.xapp(term, expr);
-      let term = Fm.Term.app(orig, term, Fm.Term.xlam("", (x) body));
-      return term;
+      let term = Fm.Term.app(Fm.Term.ref("Monad.bind"), Fm.Term.ref(monad_name));
+      let term = Fm.Term.app(term, Fm.Term.ref(String.concat(monad_name, ".monad")));
+      let term = Fm.Term.app(term, Fm.Term.hol(Bits.nil));
+      let term = Fm.Term.app(term, Fm.Term.hol(Bits.nil));
+      let term = Fm.Term.app(term, expr);
+      let term = Fm.Term.app(term, Fm.Term.lam("", (x) body));
+      return Fm.Term.ori(orig, term);
     },
     // Return direct: @expr;@
     do Parser {
@@ -2477,7 +2440,7 @@ Fm.Parser.case: Parser(Fm.Term)
       Fm.Parser.name1;
     });
     let name = case name {
-      none: case expr {
+      none: case Fm.Term.reduce(expr, Map.new<_>) as expr {
         ref: expr.name,
         var: expr.name,
         _: Fm.Name.read("self"),
@@ -2493,8 +2456,8 @@ Fm.Parser.case: Parser(Fm.Term)
       Fm.Parser.term;
     });
     var orig = Fm.Parser.stop(init);
-    let moti = case moti { none: Fm.Term.xhol(Bits.nil), some: moti.value };
-    return Fm.Term.cse(orig, Bits.nil, expr, name, with, cses, moti);
+    let moti = case moti { none: Fm.Term.hol(Bits.nil), some: moti.value };
+    return Fm.Term.ori(orig, Fm.Term.cse(Bits.nil, expr, name, with, cses, moti));
   }
 
 // Parses a goal: @?name@
@@ -2514,7 +2477,7 @@ Fm.Parser.goal: Parser(Fm.Term)
       return Maybe.to_bool<_>(verb);
     };
     var orig = Fm.Parser.stop(init);
-    return Fm.Term.gol(orig, name, dref, verb);
+    return Fm.Term.ori(orig, Fm.Term.gol(name, dref, verb));
   }
 
 // Parses a hole: @_@
@@ -2523,7 +2486,7 @@ Fm.Parser.hole: Parser(Fm.Term)
     var init = Fm.Parser.init;
     Fm.Parser.text("_");
     var orig = Fm.Parser.stop(init);
-    return Fm.Term.hol(orig, Bits.nil);
+    return Fm.Term.ori(orig, Fm.Term.hol(Bits.nil));
   }
 
 // Parses a natural number: @123@
@@ -2533,7 +2496,7 @@ Fm.Parser.nat: Parser(Fm.Term)
     Fm.Parser.spaces;
     var natx = Parser.nat;
     var orig = Fm.Parser.stop(init);
-    return Fm.Term.nat(orig, natx);
+    return Fm.Term.ori(orig, Fm.Term.nat(natx));
   }
 
 // Parses a reference: @name@
@@ -2543,9 +2506,21 @@ Fm.Parser.reference: Parser(Fm.Term)
     var name = Fm.Parser.name1;
     if String.eql(name, "case") then do Parser {
       Parser.fail<_>("Reserved keyword.");
+    } else if String.eql(name, "do") then do Parser {
+      Parser.fail<_>("Reserved keyword.");
+    } else if String.eql(name, "if") then do Parser {
+      Parser.fail<_>("Reserved keyword.");
+    } else if String.eql(name, "then") then do Parser {
+      Parser.fail<_>("Reserved keyword.");
+    } else if String.eql(name, "else") then do Parser {
+      Parser.fail<_>("Reserved keyword.");
+    } else if String.eql(name, "let") then do Parser {
+      Parser.fail<_>("Reserved keyword.");
+    } else if String.eql(name, "def") then do Parser {
+      Parser.fail<_>("Reserved keyword.");
     } else do Parser {
       var orig = Fm.Parser.stop(init);
-      return Fm.Term.ref(orig, name);
+      return Fm.Term.ori(orig, Fm.Term.ref(name));
     };
   }
 
@@ -2559,7 +2534,7 @@ Fm.Parser.item<V: Type>(parser: Parser(V)): Parser(V)
   }
 
 // Parses an application (erased): @func<argm0>@
-Fm.Parser.application.erased(func: Fm.Term): Parser(Fm.Term)
+Fm.Parser.application.erased(init: Nat, func: Fm.Term): Parser(Fm.Term)
   do Parser {
     var init = Parser.get_index;
     Parser.text("<");
@@ -2567,58 +2542,57 @@ Fm.Parser.application.erased(func: Fm.Term): Parser(Fm.Term)
       Parser.spaces_text(">"),
       Fm.Parser.item<_>(Fm.Parser.term));
     var orig = Fm.Parser.stop(init);
-    let expr = List.for<_>(args)<_>(func, (x,f) Fm.Term.app(orig, f, x));
-    return expr;
+    let expr = List.for<_>(args)<_>(func, (x,f) Fm.Term.app(f, x));
+    return Fm.Term.ori(orig, expr);
   }
 
 // Parses an application: @func<argm0>@
-Fm.Parser.application(func: Fm.Term): Parser(Fm.Term)
+Fm.Parser.application(init: Nat, func: Fm.Term): Parser(Fm.Term)
   do Parser {
-    var init = Parser.get_index;
     Parser.text("(");
     var args = Parser.until1<_>(
       Fm.Parser.text(")"),
       Fm.Parser.item<_>(Fm.Parser.term));
     var orig = Fm.Parser.stop(init);
-    let expr = List.for<_>(args)<_>(func, (x,f) Fm.Term.app(orig, f, x));
-    return expr;
+    let expr = List.for<_>(args)<_>(func, (x,f) Fm.Term.app(f, x));
+    return Fm.Term.ori(orig, expr);
   }
 
 // Parses an arrow: @A -> B@
-Fm.Parser.arrow(xtyp: Fm.Term): Parser(Fm.Term)
+Fm.Parser.arrow(init: Nat, xtyp: Fm.Term): Parser(Fm.Term)
   do Parser {
-    var init = Fm.Parser.init;
     Fm.Parser.text("->");
     var body = Fm.Parser.term;
     var orig = Fm.Parser.stop(init);
-    return Fm.Term.all(orig, Bool.false, "", "", xtyp, (s,x) body);
+    return Fm.Term.ori(orig, Fm.Term.all(Bool.false, "", "", xtyp, (s,x) body));
   }
 
 // Parses an equality: @a == b@
-Fm.Parser.equality(val0: Fm.Term): Parser(Fm.Term)
+Fm.Parser.equality(init: Nat, val0: Fm.Term): Parser(Fm.Term)
   do Parser {
-    var init = Fm.Parser.init;
     Fm.Parser.text("==");
     var val1 = Fm.Parser.term;
     var orig = Fm.Parser.stop(init);
-    let term = Fm.Term.xref("Equal");
-    let term = Fm.Term.xapp(term, Fm.Term.xhol(Bits.nil));
-    let term = Fm.Term.xapp(term, val0);
-    let term = Fm.Term.app(orig, term, val1);
-    return term;
+    let term = Fm.Term.ref("Equal");
+    let term = Fm.Term.app(term, Fm.Term.hol(Bits.nil));
+    let term = Fm.Term.app(term, val0);
+    let term = Fm.Term.app(term, val1);
+    return Fm.Term.ori(orig, term);
   }
 
 // Parses an annotation: @term :: type@
-Fm.Parser.annotation(term: Fm.Term): Parser(Fm.Term)
+Fm.Parser.annotation(init: Nat, term: Fm.Term): Parser(Fm.Term)
   do Parser {
     Fm.Parser.text("::");
     var type = Fm.Parser.term;
-    return Fm.Term.xann(Bool.false, term, type);
+    var orig = Fm.Parser.stop(init);
+    return Fm.Term.ori(orig, Fm.Term.ann(Bool.false, term, type));
   }
   
 // Parses a core term (prefix phase)
 Fm.Parser.term: Parser(Fm.Term)
   do Parser {
+    var init = Fm.Parser.init;
     var term = Parser.first_of<_>([
       Fm.Parser.type,
       Fm.Parser.forall,
@@ -2641,22 +2615,22 @@ Fm.Parser.term: Parser(Fm.Term)
       Fm.Parser.nat,
       Fm.Parser.reference,
     ]);
-    Fm.Parser.suffix(term);
+    Fm.Parser.suffix(init, term);
   }
 
 // Parses a core term (suffix phase)
-Fm.Parser.suffix(term: Fm.Term): Parser(Fm.Term)
+Fm.Parser.suffix(init: Nat, term: Fm.Term): Parser(Fm.Term)
   (idx, code)
   let suffix_parser = Parser.first_of<_>([
-    Fm.Parser.application(term),
-    Fm.Parser.application.erased(term),
-    Fm.Parser.arrow(term),
-    Fm.Parser.equality(term),
-    Fm.Parser.annotation(term),
+    Fm.Parser.application(init, term),
+    Fm.Parser.application.erased(init, term),
+    Fm.Parser.arrow(init, term),
+    Fm.Parser.equality(init, term),
+    Fm.Parser.annotation(init, term),
   ]);
   case suffix_parser(idx, code) as suffix_parsed {
     error: Parser.Reply.value<_>(idx, code, term),
-    value: Fm.Parser.suffix(suffix_parsed.val, suffix_parsed.idx, suffix_parsed.code),
+    value: Fm.Parser.suffix(init, suffix_parsed.val, suffix_parsed.idx, suffix_parsed.code),
   }
 
 // Builds a chained forall
@@ -2670,15 +2644,15 @@ Fm.Parser.make_forall(binds: List(Fm.Binder), body: Fm.Term): Fm.Term
         def all_name = binds.head.name;
         def all_xtyp = binds.head.term;
         def all_body = (s,x) Fm.Parser.make_forall(binds.tail, body);
-        Fm.Term.xall(all_eras, all_self, all_name, all_xtyp, all_body),
+        Fm.Term.all(all_eras, all_self, all_name, all_xtyp, all_body),
     }
   }
 
 // Builds a chained lambda
-Fm.Parser.make_lambda(orig: Maybe(Fm.Origin), names: List(Fm.Name), body: Fm.Term): Fm.Term
+Fm.Parser.make_lambda(names: List(Fm.Name), body: Fm.Term): Fm.Term
   case names {
     nil: body,
-    cons: Fm.Term.lam(orig, names.head, (x) Fm.Parser.make_lambda(orig, names.tail, body)),
+    cons: Fm.Term.lam(names.head, (x) Fm.Parser.make_lambda(names.tail, body)),
   }
 
 // Parses a constructor: @foo(a: A, b: B, c: C) ~ (i: I, j: J)@
@@ -2724,7 +2698,7 @@ Fm.Parser.file.def(file: String, defs: Fm.Defs): Parser(Fm.Defs)
     var type = Fm.Parser.term;
     var term = Fm.Parser.term;
     let type = Fm.Parser.make_forall(args, type);
-    let term = Fm.Parser.make_lambda(Maybe.none<_>, List.mapped<_>(args)<_>((x) case x { new: x.name }),term);
+    let term = Fm.Parser.make_lambda(List.mapped<_>(args)<_>((x) case x { new: x.name }),term);
     let type = Fm.Term.bind([], (x) Bits.1(x), type);
     let term = Fm.Term.bind([], (x) Bits.0(x), term);
     let defs = Fm.set<_>(name, Fm.Def.new(file, name, term, type, Fm.Status.init), defs);
@@ -2839,7 +2813,7 @@ Fm.highlight.tc(
         let chr = String.cons(code.head, String.nil);
         let chr =
           if Bool.and(Nat.is_zero(ix0), Bool.not(Nat.is_zero(ix1))) then
-            String.reverse(String.color("31", String.color("4", chr)))
+            String.reverse(Fm.color("31", Fm.color("4", chr)))
           else
             chr;
         let ix0 = Nat.pred(ix0);
@@ -2887,7 +2861,7 @@ Fm.Defs.read(file: String, code: String, defs: Fm.Defs): Either(String, Fm.Defs)
 
 Fm.Comp.data.ctr_args(type: Fm.Term, defs: Fm.Defs): Nat
   case Fm.Term.reduce(type, defs) as type {
-    all: Nat.succ(Fm.Comp.data.ctr_args(type.body(Fm.Term.xtyp, Fm.Term.xtyp), defs)),
+    all: Nat.succ(Fm.Comp.data.ctr_args(type.body(Fm.Term.typ, Fm.Term.typ), defs)),
     _: Nat.zero,
   }
 
@@ -2895,7 +2869,7 @@ Fm.Comp.data.ctrs(type: Fm.Term, defs: Fm.Defs): List(Nat)
   case Fm.Term.reduce(type, defs) as type {
     all: List.cons<_>(
       Fm.Comp.data.ctr_args(type.xtyp, defs),
-      Fm.Comp.data.ctrs(type.body(Fm.Term.xtyp, Fm.Term.xtyp), defs)),
+      Fm.Comp.data.ctrs(type.body(Fm.Term.typ, Fm.Term.typ), defs)),
     _: List.nil<_>,
   }
 
@@ -2904,7 +2878,7 @@ Fm.Comp.prim_of(type: Fm.Term, defs: Fm.Defs): Maybe(Fm.Prim)
     all: List.fold<_>(Fm.Comp.prims)<Maybe(Fm.Prim)>(
       case type.self {
         nil: Maybe.none<_>,
-        cons: Maybe.some<_>(Fm.Prim.data(Fm.Comp.data.ctrs(type.body(Fm.Term.xtyp, Fm.Term.xtyp),defs))),
+        cons: Maybe.some<_>(Fm.Prim.data(Fm.Comp.data.ctrs(type.body(Fm.Term.typ, Fm.Term.typ),defs))),
       },
       (name_prim, cont) case name_prim {
         new: if String.eql(name_prim.fst, type.self)
@@ -2948,7 +2922,7 @@ Fm.Comp.compile(
           all: do Maybe {
             let ctx_size = List.length<_>(ctx);
             let self_var = term;
-            let body_var = Fm.Term.xvar(term.name, ctx_size);
+            let body_var = Fm.Term.var(term.name, ctx_size);
             let body_typ = typv.body(self_var, body_var);
             let body_ctx = List.cons<_>({term.name,typv.xtyp}, ctx);
             var body_cmp = Fm.Comp.compile(term.body(body_var), Maybe.some<_>(body_typ), defs, body_ctx);
@@ -2964,7 +2938,7 @@ Fm.Comp.compile(
       },
     app: 
       do Maybe {
-        var func_typ = Fm.Check.value<_>(Fm.Term.check(term.func, Maybe.none<_>, defs, ctx, Maybe.none<_>));
+        var func_typ = Fm.Check.value<_>(Fm.Term.check(term.func, Maybe.none<_>, defs, ctx, Maybe.none<_>, Maybe.none<_>));
         let func_typ = Fm.Term.reduce(func_typ, defs);
         case func_typ {
           all: do Maybe {
@@ -2988,10 +2962,10 @@ Fm.Comp.compile(
     let:
       let ctx_size = List.length<_>(ctx);
       do Maybe {
-        var expr_typ = Fm.Check.value<_>(Fm.Term.check(term.expr, Maybe.none<_>, defs, ctx, Maybe.none<_>));
+        var expr_typ = Fm.Check.value<_>(Fm.Term.check(term.expr, Maybe.none<_>, defs, ctx, Maybe.none<_>, Maybe.none<_>));
         var expr_cmp = Fm.Comp.compile(term.expr, Maybe.none<_>, defs, ctx);
         let new_name = String.flatten([term.name, "_", Nat.show(ctx_size)]);
-        let body_var = Fm.Term.xvar(new_name, ctx_size);
+        let body_var = Fm.Term.var(new_name, ctx_size);
         let body_val = term.body(body_var);
         let body_ctx = List.cons<_>({term.name, expr_typ}, ctx);
         var body_cmp = Fm.Comp.compile(body_val, type, defs, body_ctx);
@@ -3016,6 +2990,9 @@ Fm.Comp.compile(
     hol: do Maybe {
       return Fm.Comp.nil;
     },
+    ori: do Maybe {
+      Fm.Comp.compile(term.expr, type, defs, ctx);
+    }
   }
 
 Fm.Comp.hs.name(name: Fm.Name): String
@@ -3132,13 +3109,13 @@ Fm.Comp.hs.defs(defs: Fm.Defs): String
     "_eli_u16 = \\x-> (\\t -> t (go 0 (\\n o i-> n) (x::Word16))) where go i w x = if i<16 then go (i+1) (if (shiftR x (16-i-1).&.1)>0 then \\n o i-> app i w else \\n o i-> app o w) x else w",
     "",
   ]);
-  for def in list with code:
-    case def {
+  for defn in list with code:
+    case defn {
       new: 
-        let name = def.name;
+        let name = defn.name;
         let line = case Fm.get<_>(name, Fm.Comp.hs.native_ops) as got {
           none: 
-            let comp = Fm.Comp.compile(def.term, Maybe.some<_>(def.type), defs, []);
+            let comp = Fm.Comp.compile(defn.term, Maybe.some<_>(defn.type), defs, []);
             let body = case comp {none: "()", some: Fm.Comp.hs(comp.value)};
             String.flatten(["_",Fm.Comp.hs.name(name)," = ",body]),
           some:
@@ -3165,18 +3142,18 @@ Fm.Defs.report.get_file_code(file: String, files: List(Fm.File)): String
 // REPORT: Synths, checks and reports errors of a defs
 Fm.Defs.report(files: List(Fm.File), defs: Fm.Defs): String
   let errors = "";
-  let errors = for def in Map.values<_>(defs):
-    case def {
-      new: case def.stat {
+  let errors = for defn in Map.values<_>(defs):
+    case defn {
+      new: case defn.stat {
         init: errors,
         wait: errors,
         done: errors,
-        fail: case def.stat.errors {
+        fail: case defn.stat.errors {
           nil:
             errors,
           cons: 
-            let name_str = Fm.Name.show(def.name);
-            let relevant_errors = Fm.Error.relevant(def.stat.errors, Bool.false);
+            let name_str = Fm.Name.show(defn.name);
+            let relevant_errors = Fm.Error.relevant(defn.stat.errors, Bool.false);
             for error in relevant_errors with errors:
               String.flatten([
                 errors,
@@ -3186,7 +3163,7 @@ Fm.Defs.report(files: List(Fm.File), defs: Fm.Defs): String
                   none: "",
                   some: case origin.value {
                     new:
-                      let code = Fm.Defs.report.get_file_code(def.file, files);
+                      let code = Fm.Defs.report.get_file_code(defn.file, files);
                       let code = Fm.highlight(code, origin.value.from, origin.value.upto);
                       String.flatten(["On code:\n", code, "\n"])
                   },
@@ -3197,12 +3174,12 @@ Fm.Defs.report(files: List(Fm.File), defs: Fm.Defs): String
       }
     };
   let types = "";
-  let types = for def in Map.values<_>(defs):
-    case def {
-      new: case def.stat {
+  let types = for defn in Map.values<_>(defs):
+    case defn {
+      new: case defn.stat {
         init: types,
         wait: types,
-        done: String.flatten([types, def.name, ": ", Fm.Term.show(def.type), "\n"]),
+        done: String.flatten([types, defn.name, ": ", Fm.Term.show(defn.type), "\n"]),
         fail: types,
       }
     };
@@ -3228,11 +3205,11 @@ Fm.Term.core(term: Fm.Term): String
       let self = Fm.Name.show(term.self);
       let name = Fm.Name.show(term.name);
       let xtyp = Fm.Term.core(term.xtyp);
-      let body = Fm.Term.core(term.body(Fm.Term.xvar(term.self,0),Fm.Term.xvar(term.name,0)));
+      let body = Fm.Term.core(term.body(Fm.Term.var(term.self,0),Fm.Term.var(term.name,0)));
       String.flatten([init,self,"(",name,":",xtyp,") ",body]),
     lam:
       let name = Fm.Name.show(term.name);
-      let body = Fm.Term.core(term.body(Fm.Term.xvar(term.name,0)));
+      let body = Fm.Term.core(term.body(Fm.Term.var(term.name,0)));
       String.flatten(["#",name," ",body]),
     app:
       let func = Fm.Term.core(term.func);
@@ -3241,12 +3218,12 @@ Fm.Term.core(term: Fm.Term): String
     let:
       let name = Fm.Name.show(term.name);
       let expr = Fm.Term.core(term.expr);
-      let body = Fm.Term.core(term.body(Fm.Term.xvar(term.name,0)));
+      let body = Fm.Term.core(term.body(Fm.Term.var(term.name,0)));
       String.flatten(["!", name, " = ", expr, "; ", body]),
     def:
       let name = Fm.Name.show(term.name);
       let expr = Fm.Term.core(term.expr);
-      let body = Fm.Term.core(term.body(Fm.Term.xvar(term.name,0)));
+      let body = Fm.Term.core(term.body(Fm.Term.var(term.name,0)));
       String.flatten(["$", name, " = ", expr, "; ", body]),
     ann:
       let term = Fm.Term.core(term.term);
@@ -3265,14 +3242,14 @@ Fm.Term.core(term: Fm.Term): String
 // Converts everything to FormCore
 Fm.Defs.core(defs: Fm.Defs): String
   let result = "";
-  for def in Map.values<_>(defs) with result:
-    case def {
+  for defn in Map.values<_>(defs) with result:
+    case defn {
       new: 
-        case def.stat {
+        case defn.stat {
           done:
-            let name = def.name;
-            let term = Fm.Term.core(def.term);
-            let type = Fm.Term.core(def.type);
+            let name = defn.name;
+            let term = Fm.Term.core(defn.term);
+            let type = Fm.Term.core(defn.type);
             String.flatten([result, name, " : ", type, " = ", term, ";\n"]),
           wait: result,
           init: result,
@@ -3337,12 +3314,10 @@ Fm.exports: Unit
   let _ = Fm.check_one;
   Unit.new
 
-formality: IO(Unit)
+Fm: IO(Unit)
   do IO {
-    let file = "formality.fm";
-    //let file = "./demo/demo.fmfm";
+    let file = "Pair.fm";
     var code = IO.get_file(file);
     let files = [Fm.File.new(file, code)];
     IO.print(Fm.check_all(files));
   }
-

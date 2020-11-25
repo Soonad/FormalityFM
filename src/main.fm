@@ -1,0 +1,3 @@
+main: Bool
+  let x = 3;
+  Bool.and(x, Bool.true)

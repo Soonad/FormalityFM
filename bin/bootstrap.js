@@ -14,6 +14,7 @@ if (breaking) {
   execSync("fmjs Fm.exports | js-beautify >> "+path.join(__dirname, "js/formality.js"));
 } else {
   console.log("Generating formality.js");
+  execSync("git checkout "+path.join(__dirname, "js/formality.js"));
   execSync("fmfm --js Fm.exports --module | js-beautify >> "+path.join(__dirname, "js/formality.tmp.js"));
   execSync("mv "+path.join(__dirname, "js/formality.tmp.js")+" "+path.join(__dirname, "js/formality.js"));
   //console.log("Loading formality.js (last boostrap)...");

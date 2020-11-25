@@ -1,4 +1,0 @@
-main: IO(Unit)
-  do IO {
-    IO.print("ola");
-  }
