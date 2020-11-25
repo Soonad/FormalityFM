@@ -31,6 +31,23 @@ function get_opt(opt) {
   return process.argv[3];
 };
 
+// Temporarily removes Formality.fm from the file list if we're not checking or
+// compiling a term with "Fm" on its name. This assumes files don't use defs
+// from Formality.fm. Will be removed soon, when I add lazy parsing to Fmfm.
+function TEMPORARY_OPTIMIZATION(name, files) {
+  if (files._ === "List.nil") {
+    return {_:"List.nil"};
+  } else {
+    if ( name.slice(0,3) !== "Fm."
+      && name.slice(0,9) !== "Formality"
+      && files.head.name.slice(0,9) === "Formality") {
+      return TEMPORARY_OPTIMIZATION(name, files.tail);
+    } else {
+      return {_:"List.cons", head: files.head, tail: TEMPORARY_OPTIMIZATION(name, files.tail)};
+    }
+  }
+};
+
 (async () => {
   var files = fs.readdirSync(".").filter(x => x.slice(-3) === ".fm" || x.slice(-5) === ".fmfm");
   var files = await Promise.all(files.map(file => fs.promises.readFile(file,"utf8").then(code => ({name:file,code}))));
@@ -48,8 +65,9 @@ function get_opt(opt) {
   var files = files_list;
 
   // FormCore compilation
-  if (has_opt("fmc")) {
-    var name = get_opt("--js");
+  if (has_opt("--fmc")) {
+    var name = get_opt("--fmc");
+    var files = TEMPORARY_OPTIMIZATION(name, files);
     if (name) {
       console.log(fm["Fm.to_core_one"](files, name));
     } else {
@@ -59,6 +77,7 @@ function get_opt(opt) {
   // JavaScript compilation
   } else if (has_opt("--js")) {
     var name = get_opt("--js") || "main";
+    var files = TEMPORARY_OPTIMIZATION(name, files);
     var module = process.argv[4] === "--module";
     try {
       var fmcc = fm["Fm.to_core_one"](files)(name);
@@ -71,6 +90,7 @@ function get_opt(opt) {
   // JavaScript execution
   } else if (has_opt("--run")) {
     var name = get_opt("--run") || "main";
+    var files = TEMPORARY_OPTIMIZATION(name, files);
     try {
       var fmcc = fm["Fm.to_core_one"](files)(name);
       var asjs = fmc_to_js.compile(fmcc, name, {});
@@ -87,6 +107,7 @@ function get_opt(opt) {
   // Type-Checking
   } else {
     var name = process.argv[2];
+    var files = TEMPORARY_OPTIMIZATION(name, files);
     if (name && name.slice(-3) !== ".fm" && name.slice(-5) !== ".fmfm") {
       console.log(fm["Fm.check_one"](files)(name));
     } else if (name) {
