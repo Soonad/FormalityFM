@@ -82,3 +82,20 @@ String.pad_right(size: Nat, chr: Char, str: String): String
     }
   }
 
+// A string with only one character.
+String.pure(x : Char) : String
+  String.cons(x, String.nil)
+
+// insert separators between characters, i.e. `[A,B,C] ~> [A,sep,B,sep,C]`
+String.intercalate(sep: String, xs: List(String)): String
+  String.flatten(List.intersperse<_>(sep,xs))
+
+// insert separators between characters, i.e. `[A,B,C] ~> [A,sep,B,sep,C]`
+String.intersperse(sep: Char, xs: String): String
+  case xs{
+  nil : String.nil
+  cons: case xs.tail{
+    nil : String.pure(xs.head)
+    cons: String.cons(xs.head,String.cons(sep,String.intersperse(sep,xs.tail)))
+    }
+  }
