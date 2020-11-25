@@ -1,0 +1,84 @@
+type String {
+  nil,
+  cons(head: Char, tail: String),
+}
+
+String.is_empty(str: String): Bool
+  case str {
+    nil: Bool.true,
+    cons: Bool.false,
+  }
+
+// Computes the length of the list.
+String.length(xs: String): Nat
+  String.length.go(xs, 0)
+
+// Computes the length of the list.
+String.length.go(xs: String, n: Nat): Nat
+  case xs {
+    nil : n,
+    cons: String.length.go(xs.tail, Nat.succ(n))
+  }
+
+String.concat(as: String, bs: String): String
+  case as {
+    nil: bs,
+    cons: String.cons(as.head, String.concat(as.tail,bs)),
+  }
+
+String.eql(a: String, b: String): Bool
+  case a {
+    nil: case b {
+      nil: Bool.true,
+      cons: Bool.false,
+    },
+    cons: case b {
+      nil: Bool.false,
+      cons: Bool.and(U16.eql(a.head, b.head), String.eql(a.tail,b.tail)),
+    },
+  }
+
+String.join.go(sep: String, list: List(String), fst: Bool): String
+  case list {
+    nil: "",
+    cons: String.flatten([
+      if fst then "" else sep,
+      list.head, 
+      String.join.go(sep, list.tail, Bool.false),
+    ]),
+  }
+  
+String.join(sep: String, list: List(String)): String
+  String.join.go(sep, list, Bool.true)
+
+String.flatten.go(xs: List(String), res: String): String
+  case xs {
+    nil: res,
+    cons: String.flatten.go(xs.tail, String.concat(res, xs.head)),
+  }
+
+String.flatten(xs: List(String)): String
+  String.flatten.go(xs, "")
+
+// Reverse the order of the characters of the string
+String.reverse(xs: String) : String
+  String.reverse.go(xs,String.nil)
+
+String.reverse.go(xs: String, res: String): String
+  case xs {
+    nil: res,
+    cons: String.reverse.go(xs.tail,String.cons(xs.head,res)),
+  }
+
+String.pad_left(size: Nat, chr: Char, str: String): String
+  String.reverse(String.pad_right(size, chr, String.reverse(str)))
+
+String.pad_right(size: Nat, chr: Char, str: String): String
+  case size {
+    zero: str,
+    succ: case str {
+      nil: String.cons(chr, String.pad_right(size.pred, chr, "")),
+      cons: String.cons(str.head, String.pad_right(size.pred, chr, str.tail)),
+    }
+  }
+
