@@ -2,6 +2,7 @@
 
 var fm = require("./formality.js");
 var fs = require("fs");
+var path = require("path");
 var {fmc_to_js} = require("FormCore-lang");
 
 if (process.argv[2] === "--help" || process.argv[2] === "-h") {
@@ -63,8 +64,8 @@ function get_opt(opt) {
       var fmcc = fm["Fm.to_core_one"](files)(name);
       console.log(fmc_to_js.compile(fmcc, name, {module}));
     } catch (e) {
-      console.log(e);
       console.log("Compilation error.");
+      //console.log(e);
     }
 
   // JavaScript execution
@@ -72,9 +73,15 @@ function get_opt(opt) {
     var name = get_opt("--run") || "main";
     try {
       var fmcc = fm["Fm.to_core_one"](files)(name);
-      eval(fmc_to_js.compile(fmcc, name, {}));
+      var asjs = fmc_to_js.compile(fmcc, name, {});
+      var js_path = path.join(__dirname,"_formality_tmp_.js");
+      try { fs.unlinkSync(js_path); } catch (e) {};
+      fs.writeFileSync(js_path, asjs);
+      require(js_path);
+      fs.unlinkSync(js_path);
     } catch (e) {
       console.log("Compilation error.");
+      //console.log(e);
     }
 
   // Type-Checking
