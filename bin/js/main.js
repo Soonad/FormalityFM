@@ -69,7 +69,7 @@ function TEMPORARY_OPTIMIZATION(name, files) {
     var name = get_opt("--fmc");
     var files = TEMPORARY_OPTIMIZATION(name, files);
     if (name) {
-      console.log(fm["Fm.to_core_one"](files, name));
+      console.log(fm["Fm.to_core_one"](files)(name));
     } else {
       console.log(fm["Fm.to_core_all"](files));
     }
@@ -84,7 +84,7 @@ function TEMPORARY_OPTIMIZATION(name, files) {
       console.log(fmc_to_js.compile(fmcc, name, {module}));
     } catch (e) {
       console.log("Compilation error.");
-      //console.log(e);
+      console.log(e);
     }
 
   // JavaScript execution
@@ -101,7 +101,7 @@ function TEMPORARY_OPTIMIZATION(name, files) {
       fs.unlinkSync(js_path);
     } catch (e) {
       console.log("Compilation error.");
-      //console.log(e);
+      console.log(e);
     }
 
   // Type-Checking

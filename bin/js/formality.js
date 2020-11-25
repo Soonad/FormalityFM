@@ -3645,10 +3645,10 @@ module.exports = (function() {
                 var $619 = self.name;
                 var $620 = self.dref;
                 var $621 = self.verb;
-                return "<ERROR>";
+                return "<GOL>";
             case 'Fm.Term.hol':
                 var $622 = self.path;
-                return "<ERROR>";
+                return "<HOL>";
             case 'Fm.Term.nat':
                 var $623 = self.natx;
                 return String$flatten(List$cons("+")(List$cons(Nat$show($623))(List$nil)));
@@ -3665,11 +3665,11 @@ module.exports = (function() {
                 var $629 = self.with;
                 var $630 = self.cses;
                 var $631 = self.moti;
-                return "<ERROR>";
+                return "<CSE>";
             case 'Fm.Term.ori':
                 var $632 = self.orig;
                 var $633 = self.expr;
-                return "<ERROR>";
+                return Fm$Term$core($633);
         }
     })());
     var Fm$Defs$core = (_defs$1 => (() => {

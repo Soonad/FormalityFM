@@ -3229,13 +3229,20 @@ Fm.Term.core(term: Fm.Term): String
       let term = Fm.Term.core(term.term);
       let type = Fm.Term.core(term.type);
       String.flatten(["{",term,":",type,"}"]),
+    gol:
+      "<GOL>",
+    hol:
+      "<HOL>",
     nat:
       String.flatten(["+", Nat.show(term.natx)]),
     chr:
       String.flatten(["'", Fm.escape.char(term.chrx), "'"]),
     str:
       String.flatten(["\"", Fm.escape(term.strx), "\""]),
-    _: "<ERROR>",
+    cse:
+      "<CSE>",
+    ori:
+      Fm.Term.core(term.expr),
   }
 
 
