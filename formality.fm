@@ -2313,8 +2313,125 @@ Fm.Term.expand(dref: List(Bits), term: Fm.Term, defs: Fm.Defs): Fm.Term
 // Equality
 // ========
 
+// Checks if two terms are absolutely identical, by string. This function isn't
+// necessary, but it greatly optimizes Fm.Term.equal as it allows it to return
+// early, avoiding building and comparing big bitstrings.
+//Fm.Term.identical(a: Fm.Term, b: Fm.Term, depth: Nat, init: Nat): Bool
+  //case a {
+    //var: case b {
+      //var: 
+        //if Bool.and(Nat.gte(a.indx, init), Nat.gte(b.indx, init)) then
+          //let ai = Nat.sub(depth, Nat.succ(a.indx));
+          //let bi = Nat.sub(depth, Nat.succ(b.indx));
+          //Nat.eql(ai, bi)
+        //else if Bool.and(Nat.ltn(a.indx, init), Nat.ltn(b.indx, init)) then
+          //Nat.eql(a.indx, b.indx)
+        //else
+          //Bool.false,
+      //def: Fm.Term.identical(a, b.body(b.expr), depth, init),
+      //ann: Fm.Term.identical(a, b.term, depth, init),
+      //_: Bool.false,
+    //},
+    //ref: case b {
+      //ref: String.eql(a.name, b.name),
+      //def: Fm.Term.identical(a, b.body(b.expr), depth, init),
+      //ann: Fm.Term.identical(a, b.term, depth, init),
+      //_: Bool.false,
+    //},
+    //typ: case b {
+      //typ: Bool.true,
+      //def: Fm.Term.identical(a, b.body(b.expr), depth, init),
+      //ann: Fm.Term.identical(a, b.term, depth, init),
+      //_: Bool.false,
+    //},
+    //all: case b {
+      //all:
+        //// This is a hadouken of ifs to improve performance on strict langs
+        //if Bool.eql(a.eras, b.eras) then
+          //if String.eql(a.self, b.self) then
+            //if Fm.Term.identical(a.xtyp, b.xtyp, depth, init) then
+              //let a_var0 = Fm.Term.xvar(a.self, depth);
+              //let b_var0 = Fm.Term.xvar(b.self, depth);
+              //let a_var1 = Fm.Term.xvar(a.name, Nat.succ(depth));
+              //let b_var1 = Fm.Term.xvar(b.name, Nat.succ(depth));
+              //let a_body = a.body(a_var0, a_var1);
+              //let b_body = b.body(b_var0, b_var1);
+              //let depth  = Nat.succ(Nat.succ(depth));
+              //if Fm.Term.identical(a_body, b_body, depth, init) then Bool.true
+              //else Bool.false
+            //else Bool.false
+          //else Bool.false
+        //else Bool.false,
+      //def: Fm.Term.identical(a, b.body(b.expr), depth, init),
+      //ann: Fm.Term.identical(a, b.term, depth, init),
+      //_: Bool.false,
+    //},
+    //lam: case b {
+      //lam: 
+        //let a_body = a.body(Fm.Term.xvar(a.name, depth));
+        //let b_body = b.body(Fm.Term.xvar(b.name, depth));
+        //let depth  = Nat.succ(depth);
+        //if Fm.Term.identical(a_body, b_body, depth, init) then Bool.true
+        //else Bool.false,
+      //def: Fm.Term.identical(a, b.body(b.expr), depth, init),
+      //ann: Fm.Term.identical(a, b.term, depth, init),
+      //_: Bool.false,
+    //},
+    //app: case b {
+      //app: 
+        //if Fm.Term.identical(a.func, b.func, depth, init) then
+          //if Fm.Term.identical(a.argm, b.argm, depth, init) then Bool.true
+          //else Bool.false
+        //else Bool.false,
+      //def: Fm.Term.identical(a, b.body(b.expr), depth, init),
+      //ann: Fm.Term.identical(a, b.term, depth, init),
+      //_: Bool.false,
+    //},
+    //let: case b {
+      //let:
+        //if Fm.Term.identical(a.expr, b.expr, depth, init) then
+          //let a_body = a.body(Fm.Term.xvar(a.name, depth));
+          //let b_body = b.body(Fm.Term.xvar(b.name, depth));
+          //let depth  = Nat.succ(depth);
+          //if Fm.Term.identical(a_body, b_body, depth, init) then Bool.true
+          //else Bool.false
+        //else Bool.false,
+      //def: Fm.Term.identical(a, b.body(b.expr), depth, init),
+      //ann: Fm.Term.identical(a, b.term, depth, init),
+      //_: Bool.false,
+    //},
+    //def: Fm.Term.identical(a.body(a.expr), b, depth, init),
+    //ann: Fm.Term.identical(a.term, b, depth, init),
+    //gol: Bool.false,
+    //hol: case b {
+      //hol: Bool.true,
+      //def: Fm.Term.identical(a, b.body(b.expr), depth, init),
+      //ann: Fm.Term.identical(a, b.term, depth, init),
+      //_: Bool.false,
+    //},
+    //nat: case b {
+      //nat: Nat.eql(a.natx, b.natx),
+      //def: Fm.Term.identical(a, b.body(b.expr), depth, init),
+      //ann: Fm.Term.identical(a, b.term, depth, init),
+      //_: Fm.Term.identical(Fm.Term.unroll_nat(a.natx), b, depth, init),
+    //},
+    //chr: case b {
+      //chr: U16.eql(a.chrx, b.chrx),
+      //def: Fm.Term.identical(a, b.body(b.expr), depth, init),
+      //ann: Fm.Term.identical(a, b.term, depth, init),
+      //_: Fm.Term.identical(Fm.Term.unroll_chr(a.chrx), b, depth, init),
+    //},
+    //str: case b {
+      //str: String.eql(a.strx, b.strx),
+      //def: Fm.Term.identical(a, b.body(b.expr), depth, init),
+      //ann: Fm.Term.identical(a, b.term, depth, init),
+      //_: Fm.Term.identical(Fm.Term.unroll_str(a.strx), b, depth, init),
+    //},
+    //cse: Bool.false,
+  //}
+
 // Helper function
-Fm.Term.serialize.go(term: Fm.Term, depth: Nat, init: Nat, x: Bits): Bits
+Fm.Term.serialize(term: Fm.Term, depth: Nat, init: Nat, x: Bits): Bits
   case term {
     ref:
       let name = Bits.concat(Fm.Name.to_bits(term.name));
@@ -2331,8 +2448,8 @@ Fm.Term.serialize.go(term: Fm.Term, depth: Nat, init: Nat, x: Bits): Bits
     all:
       let eras = if term.eras then Bits.1 else Bits.0
       let self = Bits.concat(Fm.Name.to_bits(term.self));
-      let xtyp = Fm.Term.serialize.go(term.xtyp, depth, init);
-      let body = Fm.Term.serialize.go(
+      let xtyp = Fm.Term.serialize(term.xtyp, depth, init);
+      let body = Fm.Term.serialize(
         term.body(
           Fm.Term.xvar(term.self, depth),
           Fm.Term.xvar(term.name, Nat.succ(depth))),
@@ -2340,44 +2457,40 @@ Fm.Term.serialize.go(term: Fm.Term, depth: Nat, init: Nat, x: Bits): Bits
         init);
       Bits.1(Bits.0(Bits.0(eras(self(xtyp(body(x))))))),
     lam:
-      let body = Fm.Term.serialize.go(
+      let body = Fm.Term.serialize(
         term.body(Fm.Term.xvar(term.name, depth)),
         Nat.succ(depth),
         init);
       Bits.1(Bits.0(Bits.1(body(x)))),
     app:
-      let func = Fm.Term.serialize.go(term.func, depth, init);
-      let argm = Fm.Term.serialize.go(term.argm, depth, init);
+      let func = Fm.Term.serialize(term.func, depth, init);
+      let argm = Fm.Term.serialize(term.argm, depth, init);
       Bits.1(Bits.1(Bits.0(func(argm(x))))),
     let:
-      let expr = Fm.Term.serialize.go(term.expr, depth, init);
-      let body = Fm.Term.serialize.go(
+      let expr = Fm.Term.serialize(term.expr, depth, init);
+      let body = Fm.Term.serialize(
         term.body(Fm.Term.xvar(term.name, depth)),
         Nat.succ(depth),
         init);
       Bits.1(Bits.1(Bits.1(expr(body(x))))),
     def:
-      Fm.Term.serialize.go(term.body(term.expr), depth, init, x),
+      Fm.Term.serialize(term.body(term.expr), depth, init, x),
     ann:
-      Fm.Term.serialize.go(term.term, depth, init, x),
+      Fm.Term.serialize(term.term, depth, init, x),
     gol:
       let name = Bits.concat(Fm.Name.to_bits(term.name));
       Bits.0(Bits.0(Bits.0(name(x)))),
     hol:
       x,
     nat:
-      Bits.0(Bits.0(Bits.0(Bits.concat(Nat.to_bits(term.natx),x)))),
+      Fm.Term.serialize(Fm.Term.unroll_nat(term.natx), depth, init, x),
     chr:
-      Bits.0(Bits.0(Bits.0(Bits.concat(Word.to_bits<16>(U16.to_word(term.chrx)),x)))),
+      Fm.Term.serialize(Fm.Term.unroll_chr(term.chrx), depth, init, x),
     str:
-      Fm.Term.serialize.go(Fm.Term.unroll_str(term.strx), depth, init, x),
+      Fm.Term.serialize(Fm.Term.unroll_str(term.strx), depth, init, x),
     cse:
       x,
   }
-
-// SERIALIZE: Serializes a term to a representative bitstring
-Fm.Term.serialize(term: Fm.Term, depth: Nat): Bits
-  Fm.Term.serialize.go(term, depth, depth, Bits.nil)
 
 // Helper function
 Fm.Term.equal.patch(path: Bits, term: Fm.Term): Fm.Check(Bool)
@@ -2385,88 +2498,200 @@ Fm.Term.equal.patch(path: Bits, term: Fm.Term): Fm.Check(Bool)
 
 // EQUAL: Determines if two terms are equal
 Fm.Term.equal(a: Fm.Term, b: Fm.Term, defs: Fm.Defs, lv: Nat, seen: Set): Fm.Check(Bool)
-  let a1 = Fm.Term.reduce(a, defs);
-  let b1 = Fm.Term.reduce(b, defs);
-  let ah = Fm.Term.serialize(a1, lv);
-  let bh = Fm.Term.serialize(b1, lv);
-  let id = Bits.concat(ah, bh);
-  if Bool.or(Bits.eql(ah, bh), Set.has(id, seen)) then do Fm.Check {
+  let ah = Fm.Term.serialize(a, lv, lv, Bits.nil);
+  let bh = Fm.Term.serialize(b, lv, lv, Bits.nil);
+  if Bits.eql(ah, bh) then do Fm.Check {
+    //let ue = Debug.log<_>(String.flatten([
+      //"==", Fm.Term.show(a), "\n",
+      //"==", Fm.Term.show(b), "\n",
+      //Bits.show(ah), "\n",
+      //Bits.show(bh), "\n",
+      //"~",
+    //]), (x) Unit.new);
     return Bool.true;
-  } else case a1 {
-    all: case b1 {
-      all: do Fm.Check {
-        let seen = Set.set(id, seen);
-        let a1_body = a1.body(
-          Fm.Term.xvar(a1.self, lv),
-          Fm.Term.xvar(a1.name, Nat.succ(lv)));
-        let b1_body = b1.body(
-          Fm.Term.xvar(b1.self, lv),
-          Fm.Term.xvar(b1.name, Nat.succ(lv)));
-        let eq_self = String.eql(a1.self, b1.self);
-        let eq_eras = Bool.eql(a1.eras, b1.eras);
-        if Bool.and(eq_self, eq_eras) then do Fm.Check {
-          var eq_type = Fm.Term.equal(a1.xtyp, b1.xtyp, defs, lv, seen);
-          var eq_body = Fm.Term.equal(a1_body, b1_body, defs, Nat.succ(Nat.succ(lv)), seen);
-          return Bool.and(eq_type, eq_body);
-        } else do Fm.Check {
-          return Bool.false;
-        };
-      },
-      hol:
-        Fm.Term.equal.patch(b1.path, a),
-      _: do Fm.Check {
-        return Bool.false;
-      },
-    },
-    lam: case b1 {
-      lam: do Fm.Check {
-          let seen = Set.set(id, seen);
-          let a1_body = a1.body(Fm.Term.xvar(a1.name, lv));
-          let b1_body = b1.body(Fm.Term.xvar(b1.name, lv));
-          var eq_body = Fm.Term.equal(a1_body, b1_body, defs, Nat.succ(lv), seen);
-          return eq_body;
+  } else do Fm.Check {
+    let a1 = Fm.Term.reduce(a, defs);
+    let b1 = Fm.Term.reduce(b, defs);
+    let ah = Fm.Term.serialize(a1, lv, lv, Bits.nil);
+    let bh = Fm.Term.serialize(b1, lv, lv, Bits.nil);
+    if Bits.eql(ah, bh) then do Fm.Check {
+      return Bool.true;
+    } else do Fm.Check {
+      let id = Bits.concat(ah, bh);
+      if Set.has(id, seen) then do Fm.Check {
+        return Bool.true;
+      } else case a1 {
+        all: case b1 {
+          all: do Fm.Check {
+            let seen = Set.set(id, seen);
+            let a1_body = a1.body(
+              Fm.Term.xvar(a1.self, lv),
+              Fm.Term.xvar(a1.name, Nat.succ(lv)));
+            let b1_body = b1.body(
+              Fm.Term.xvar(b1.self, lv),
+              Fm.Term.xvar(b1.name, Nat.succ(lv)));
+            let eq_self = String.eql(a1.self, b1.self);
+            let eq_eras = Bool.eql(a1.eras, b1.eras);
+            if Bool.and(eq_self, eq_eras) then do Fm.Check {
+              var eq_type = Fm.Term.equal(a1.xtyp, b1.xtyp, defs, lv, seen);
+              var eq_body = Fm.Term.equal(a1_body, b1_body, defs, Nat.succ(Nat.succ(lv)), seen);
+              return Bool.and(eq_type, eq_body);
+            } else do Fm.Check {
+              return Bool.false;
+            };
+          },
+          hol:
+            Fm.Term.equal.patch(b1.path, a),
+          _: do Fm.Check {
+            return Bool.false;
+          },
         },
-        hol: Fm.Term.equal.patch(b1.path, a),
-        _: do Fm.Check {
-          return Bool.false;
+        lam: case b1 {
+          lam: do Fm.Check {
+              let seen = Set.set(id, seen);
+              let a1_body = a1.body(Fm.Term.xvar(a1.name, lv));
+              let b1_body = b1.body(Fm.Term.xvar(b1.name, lv));
+              var eq_body = Fm.Term.equal(a1_body, b1_body, defs, Nat.succ(lv), seen);
+              return eq_body;
+            },
+            hol: Fm.Term.equal.patch(b1.path, a),
+            _: do Fm.Check {
+              return Bool.false;
+            },
+          },
+        app: case b1 {
+          app: do Fm.Check {
+            let seen = Set.set(id, seen);
+            var eq_func = Fm.Term.equal(a1.func, b1.func, defs, lv, seen);
+            var eq_argm = Fm.Term.equal(a1.argm, b1.argm, defs, lv, seen);
+            return Bool.and(eq_func, eq_argm);
+          },
+          hol: Fm.Term.equal.patch(b1.path, a),
+          _: do Fm.Check {
+            return Bool.false;
+          },
         },
-      },
-    app: case b1 {
-      app: do Fm.Check {
-        let seen = Set.set(id, seen);
-        var eq_func = Fm.Term.equal(a1.func, b1.func, defs, lv, seen);
-        var eq_argm = Fm.Term.equal(a1.argm, b1.argm, defs, lv, seen);
-        return Bool.and(eq_func, eq_argm);
-      },
-      hol: Fm.Term.equal.patch(b1.path, a),
-      _: do Fm.Check {
-        return Bool.false;
-      },
-    },
-    let: case b1 {
-      let: do Fm.Check {
-        let seen = Set.set(id, seen);
-        let a1_body = a1.body(Fm.Term.xvar(a1.name, lv));
-        let b1_body = b1.body(Fm.Term.xvar(b1.name, lv));
-        var eq_expr = Fm.Term.equal(a1.expr, b1.expr, defs, lv, seen);
-        var eq_body = Fm.Term.equal(a1_body, b1_body, defs, Nat.succ(lv), seen);
-        return Bool.and(eq_expr, eq_body);
-      },
-      hol:
-        Fm.Term.equal.patch(b1.path, a),
-      _: do Fm.Check {
-        return Bool.false;
-      },
-    },
-    hol:
-      Fm.Term.equal.patch(a1.path, b),
-    _: case b1 {
-      hol: Fm.Term.equal.patch(b1.path, a),
-      _: do Fm.Check {
-        return Bool.false;
-      },
-    },
+        let: case b1 {
+          let: do Fm.Check {
+            let seen = Set.set(id, seen);
+            let a1_body = a1.body(Fm.Term.xvar(a1.name, lv));
+            let b1_body = b1.body(Fm.Term.xvar(b1.name, lv));
+            var eq_expr = Fm.Term.equal(a1.expr, b1.expr, defs, lv, seen);
+            var eq_body = Fm.Term.equal(a1_body, b1_body, defs, Nat.succ(lv), seen);
+            return Bool.and(eq_expr, eq_body);
+          },
+          hol:
+            Fm.Term.equal.patch(b1.path, a),
+          _: do Fm.Check {
+            return Bool.false;
+          },
+        },
+        hol:
+          Fm.Term.equal.patch(a1.path, b),
+        _: case b1 {
+          hol: Fm.Term.equal.patch(b1.path, a),
+          _: do Fm.Check {
+            return Bool.false;
+          },
+        },
+      };
+    };
   }
+      //)
+
+  //let ok = Fm.Term.identical(a, b, lv, lv);
+  //if Fm.Term.identical(a, b, lv, lv) then do Fm.Check {
+    //return Bool.true;
+  //} else do Fm.Check {
+    //let a1 = Fm.Term.reduce(a, defs);
+    //let b1 = Fm.Term.reduce(b, defs);
+    //if Fm.Term.identical(a1, b1, lv, lv) then do Fm.Check {
+      //return Bool.true;
+    //} else do Fm.Check {
+      //let ah = Fm.Term.serialize(a1, lv, lv, Bits.nil);
+      //let bh = Fm.Term.serialize(b1, lv, lv, Bits.nil);
+      //let id = Bits.concat(ah, bh);
+      //if Set.has(id, seen) then do Fm.Check {
+        //return Bool.true;
+      //} else case a1 {
+        //all: case b1 {
+          //all: do Fm.Check {
+            //let seen = Set.set(id, seen);
+            //let a1_body = a1.body(
+              //Fm.Term.xvar(a1.self, lv),
+              //Fm.Term.xvar(a1.name, Nat.succ(lv)));
+            //let b1_body = b1.body(
+              //Fm.Term.xvar(b1.self, lv),
+              //Fm.Term.xvar(b1.name, Nat.succ(lv)));
+            //let eq_self = String.eql(a1.self, b1.self);
+            //let eq_eras = Bool.eql(a1.eras, b1.eras);
+            //if Bool.and(eq_self, eq_eras) then do Fm.Check {
+              //var eq_type = Fm.Term.equal(a1.xtyp, b1.xtyp, defs, lv, seen);
+              //var eq_body = Fm.Term.equal(a1_body, b1_body, defs, Nat.succ(Nat.succ(lv)), seen);
+              //return Bool.and(eq_type, eq_body);
+            //} else do Fm.Check {
+              //return Bool.false;
+            //};
+          //},
+          //hol:
+            //Fm.Term.equal.patch(b1.path, a),
+          //_: do Fm.Check {
+            //return Bool.false;
+          //},
+        //},
+        //lam: case b1 {
+          //lam: do Fm.Check {
+              //let seen = Set.set(id, seen);
+              //let a1_body = a1.body(Fm.Term.xvar(a1.name, lv));
+              //let b1_body = b1.body(Fm.Term.xvar(b1.name, lv));
+              //var eq_body = Fm.Term.equal(a1_body, b1_body, defs, Nat.succ(lv), seen);
+              //return eq_body;
+            //},
+            //hol: Fm.Term.equal.patch(b1.path, a),
+            //_: do Fm.Check {
+              //return Bool.false;
+            //},
+          //},
+        //app: case b1 {
+          //app: do Fm.Check {
+            //let seen = Set.set(id, seen);
+            //var eq_func = Fm.Term.equal(a1.func, b1.func, defs, lv, seen);
+            //var eq_argm = Fm.Term.equal(a1.argm, b1.argm, defs, lv, seen);
+            //return Bool.and(eq_func, eq_argm);
+          //},
+          //hol: Fm.Term.equal.patch(b1.path, a),
+          //_: do Fm.Check {
+            //return Bool.false;
+          //},
+        //},
+        //let: case b1 {
+          //let: do Fm.Check {
+            //let seen = Set.set(id, seen);
+            //let a1_body = a1.body(Fm.Term.xvar(a1.name, lv));
+            //let b1_body = b1.body(Fm.Term.xvar(b1.name, lv));
+            //var eq_expr = Fm.Term.equal(a1.expr, b1.expr, defs, lv, seen);
+            //var eq_body = Fm.Term.equal(a1_body, b1_body, defs, Nat.succ(lv), seen);
+            //return Bool.and(eq_expr, eq_body);
+          //},
+          //hol:
+            //Fm.Term.equal.patch(b1.path, a),
+          //_: do Fm.Check {
+            //return Bool.false;
+          //},
+        //},
+        //hol:
+          //Fm.Term.equal.patch(a1.path, b),
+        //_: case b1 {
+          //hol: Fm.Term.equal.patch(b1.path, a),
+          //_: do Fm.Check {
+            //return Bool.false;
+          //},
+        //},
+      //};
+    //};
+  //}
+      ////)
+
 
 // Type Checking
 // =============
@@ -4499,10 +4724,12 @@ Fm.Defs.core(defs: Fm.Defs): String
 // ===
 
 Fm.exec(report: Fm.Defs -> String, code: String): String
-  case Fm.Defs.read(code) as parsed {
+  Debug.log<_>("Parsing...", (x)
+  let defs = Fm.Defs.read(code);
+  case defs as parsed {
     left: parsed.value,
     right: report(parsed.value),
-  }
+  })
 
 Fm.to_core_one(code: String, name: String): String
   Fm.exec((defs) Fm.Defs.core(Fm.Synth.one(name,defs)), code)
@@ -4511,7 +4738,12 @@ Fm.to_core_all(code: String): String
   Fm.exec((defs) Fm.Defs.core(Fm.Synth.all(defs)), code)
 
 Fm.check_all(code: String): String
-  Fm.exec((defs) Fm.Defs.report(code, Fm.Synth.all(defs)), code)
+  Fm.exec(
+    (defs)
+      Debug.log<_>("Synth...", (x)
+      let defs = Fm.Synth.all(defs);
+      Fm.Defs.report(code, defs)),
+    code)
 
 Fm.check_one(code: String, name: String): String
   Fm.exec((defs) Fm.Defs.report(code, Fm.Synth.one(name,defs)), code)
@@ -4524,8 +4756,11 @@ Fm.exports: Unit
   Unit.new
 
 formality: IO(Unit)
+  Debug.log<_>("Starting...", (x)
   do IO {
     let file = "formality.fm";
+    //let file = "./demo/demo.fmfm";
     var code = IO.get_file(file);
     IO.print(Fm.check_all(code));
-  }
+  })
+
