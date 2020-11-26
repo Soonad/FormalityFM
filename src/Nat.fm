@@ -156,3 +156,5 @@ Nat.show_digit(base: Nat, n: Nat) : Char
 Nat.to_u16(n: Nat): U16
   Nat.apply<U16>(n, U16.inc, U16.zero)
 
+Nat.to_u32(n: Nat): U32
+  Nat.apply<U32>(n, U32.inc, U32.zero)
