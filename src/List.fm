@@ -124,6 +124,16 @@ List.eql<A: Type>(eql: A -> A -> Bool, a: List(A), b: List(A)): Bool
     },
   }
 
+// Removes the first elements of a list.
+List.drop<A: Type>(n: Nat, xs: List(A)):  List(A)
+  case n {
+    zero: xs
+    succ: case xs {
+      nil : List.nil<_>
+      cons: List.drop<_>(n.pred,xs.tail)
+    }
+  }
+
 List.mapped<A: Type>(as: List(A))<B: Type>(f: A -> B): List(B)
   case as {
     nil: List.nil<_>,
