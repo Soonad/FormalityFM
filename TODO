@@ -1,3 +1,19 @@
+Ajustes
+- tirar a necessidade do IO no do
+- deixar o case-of mais inteligente pra provas
+- tirar a necessidade do ; no do
+- adicionar let {x,y} = ... que seria o get antigo
+- adicionar open x
+- lambdas com anotações `(b:A) x`
+- melhor sintaxe pro `log`
+
+
+
+
+
+
+
+
 TODO
 - JS Compiler
 - Make case-of smarter

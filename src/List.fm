@@ -3,6 +3,12 @@ type List <A: Type> {
   cons(head: A, tail: List(A)),
 }
 
+List.tail<A: Type>(xs: List(A)): List(A)
+  case xs {
+    nil: List.nil<_>,
+    cons: xs.tail,
+  }
+
 List.take<A: Type>(n: Nat, xs: List(A)): List(A)
   case xs {
     nil : List.nil<_>,
@@ -152,6 +158,15 @@ List.at<A: Type>(index: Nat, list: List(A)): Maybe(A)
 List.at_last<A: Type>(index: Nat, list: List(A)): Maybe(A)
   List.at<A>(index, List.reverse<_>(list))
 
+List.init<A: Type>(list: List(A)): List(A)
+  case list {
+    cons: case list.tail {
+      cons: List.cons<_>(list.head, List.init<A>(list.tail)),
+      nil: List.nil<_>,
+    },
+    nil: List.nil<_>,
+  }
+  
 List.split_at<A: Type>(n : Nat, xs: List(A)) : Pair(List(A),List(A))
   case xs {
     nil : { List.nil<_>, List.nil<_> },
@@ -160,6 +175,15 @@ List.split_at<A: Type>(n : Nat, xs: List(A)) : Pair(List(A),List(A))
       succ: case List.split_at<_>(n.pred, xs.tail) as res {
         new: { List.cons<_>(xs.head, res.fst), res.snd }
       }
+    }
+  }
+
+List.zip<A: Type, B: Type>(as: List(A), bs: List(B)): List(Pair(A,B))
+  case as {
+    nil: List.nil<_>,
+    cons: case bs {
+      nil: List.nil<_>,
+      cons: List.cons<_>(Pair.new<_,_>(as.head, bs.head), List.zip<A,B>(as.tail, bs.tail)),
     }
   }
 

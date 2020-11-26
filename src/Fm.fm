@@ -87,7 +87,7 @@ type Fm.Term {
     name: Fm.Name,
     with: List(Fm.Def),
     cses: Map(Fm.Term),
-    moti: Fm.Term,
+    moti: Maybe(Fm.Term),
   ),
   // An origin
   ori(
@@ -508,6 +508,7 @@ Fm.Term.show.go(term: Fm.Term, path: Maybe(Bits -> Bits)): String
         case path {
           none:
             name,
+            //String.flatten(["$", name]),
           some: 
             let path_val = Bits.concat(Fm.Path.to_bits(path.value), Bits.1(Bits.nil));
             let path_str = Nat.show(Bits.to_nat(path_val));
@@ -515,6 +516,7 @@ Fm.Term.show.go(term: Fm.Term, path: Maybe(Bits -> Bits)): String
         },
       var:
         Fm.Name.show(term.name),
+        //String.flatten([Fm.Name.show(term.name), "#", Nat.show(term.indx)]),
       typ:
         "Type",
       all:
@@ -582,12 +584,16 @@ Fm.Term.show.go(term: Fm.Term, path: Maybe(Bits -> Bits)): String
           let name = Fm.Name.from_bits(Pair.fst<_,_>(x));
           let term = Fm.Term.show.go(Pair.snd<_,_>(x), Maybe.none<_>);
           String.flatten([name, ": ", term, "; "])));
-        let moti = Fm.Term.show.go(term.moti, Maybe.none<_>);
-        String.flatten(["case ",expr," as ",name,wyth," { ",cses,"} : ",moti]),
+        let moti = case term.moti {
+          none: "",
+          some: String.flatten([": ", Fm.Term.show.go(term.moti.value, Maybe.none<_>)]),
+        };
+        String.flatten(["case ",expr," as ",name,wyth," { ",cses,"}",moti]),
       ori:
         Fm.Term.show.go(term.expr, path),
     }
   }
+
 
 Fm.Term.show(term: Fm.Term): String
   Fm.Term.show.go(term, Maybe.none<_>)
@@ -1008,6 +1014,12 @@ Fm.Term.serialize(term: Fm.Term, depth: Nat, init: Nat, x: Bits): Bits
       Fm.Term.serialize(term.expr, depth, init, x),
   }
 
+// Determines if two terms are identical
+Fm.Term.identical(a: Fm.Term, b: Fm.Term, lv: Nat): Bool
+  let ah = Fm.Term.serialize(a, lv, lv, Bits.nil);
+  let bh = Fm.Term.serialize(b, lv, lv, Bits.nil);
+  Bits.eql(ah, bh)
+
 // Helper function
 Fm.Term.equal.patch(path: Bits, term: Fm.Term): Fm.Check(Bool)
   Fm.Check.result<_>(Maybe.some<_>(Bool.true), [Fm.Error.patch(path, Fm.Term.normalize(term, Map.new<_>))])
@@ -1259,7 +1271,23 @@ Fm.Term.check(
       cse: do Fm.Check {
         let expr = term.expr;
         var etyp = Fm.Term.check(expr, Maybe.none<_>, defs, ctx, Fm.MPath.0(path), orig);
-        let dsug = Fm.Term.desugar_cse(term.expr, term.name, term.with, term.cses, term.moti, etyp, defs, ctx);
+        // If cse has no moti and we have an inferred type, then we guess it
+        // with the information we have, substituting selfs and indices.
+        // Otherwise, we just replace it by a normal hole.
+        let dsug = case term.moti {
+          none:
+            let moti = case type {
+              none:
+                Fm.Term.hol(Bits.nil),
+              some:
+                let size = List.length<_>(ctx);
+                let moti = Fm.SmartMotive.make(term.name, term.expr, etyp, type.value, size, defs);
+                moti,
+            };
+            Maybe.some<_>(Fm.Term.cse(term.path, term.expr, term.name, term.with, term.cses, Maybe.some<_>(moti))),
+          some:
+            Fm.Term.desugar_cse(term.expr, term.name, term.with, term.cses, term.moti.value, etyp, defs, ctx),
+        };
         case dsug {
           none: Fm.Check.result<_>(type, [Fm.Error.cant_infer(orig, term, ctx)]),
           some: Fm.Check.result<_>(type, [Fm.Error.patch(Fm.MPath.to_bits(path),dsug.value)]),
@@ -1294,6 +1322,122 @@ Fm.Term.check(
       }
     };
   }
+
+// SmartMotive
+// ==========
+
+// Replaces a term by another. Assumes bound variables are linked to native
+// lambdas, so no shifting is necessary. Used in desugarers. TODO: variable
+// captures may happen if the motive has lambdas with identical names to the
+// case-of name/indices. To improve this, we would need to replace term.body by
+// variables. But since variables are bruijn-leveled, this won't work since the
+// motive desugarer adds lambdas. Thus, in order for it to work, we'd need
+// either bruijn indices, or to make the motive desugarer call level-shift for
+// each lambda it adds.
+Fm.SmartMotive.replace(term: Fm.Term, from: Fm.Term, to: Fm.Term, lv: Nat): Fm.Term
+  //let skip = Debug.log<_>(String.flatten(["replace term=", Fm.Term.show(term), " from=", Fm.Term.show(from), " to=", Fm.Term.show(to), " lv=", Nat.show(lv)]), (x) Unit.new);
+  if Fm.Term.identical(term, from, lv) then
+    to
+  else case term {
+    ref:
+      Fm.Term.ref(term.name),
+    var:
+      Fm.Term.var(term.name, term.indx),
+    typ:
+      Fm.Term.typ,
+    all: 
+      let xtyp = Fm.SmartMotive.replace(term.xtyp, from, to, lv);
+      let body = term.body(Fm.Term.ref(term.self),Fm.Term.ref(term.name));
+      let body = Fm.SmartMotive.replace(body, from, to, Nat.succ(Nat.succ(lv)));
+      Fm.Term.all(term.eras, term.self, term.name, xtyp, (s,x) body),
+    lam:
+      let body = term.body(Fm.Term.ref(term.name));
+      let body = Fm.SmartMotive.replace(body, from, to, Nat.succ(lv));
+      Fm.Term.lam(term.name, (x) body),
+    app:
+      let func = Fm.SmartMotive.replace(term.func, from, to, lv);
+      let argm = Fm.SmartMotive.replace(term.argm, from, to, lv);
+      Fm.Term.app(func, argm),
+    let:
+      let expr = Fm.SmartMotive.replace(term.expr, from, to, lv);
+      let body = term.body(Fm.Term.ref(term.name))
+      let body = Fm.SmartMotive.replace(body, from, to, Nat.succ(lv));
+      Fm.Term.let(term.name, expr, (x) body),
+    def:
+      let expr = Fm.SmartMotive.replace(term.expr, from, to, lv);
+      let body = term.body(Fm.Term.ref(term.name))
+      let body = Fm.SmartMotive.replace(body, from, to, Nat.succ(lv));
+      Fm.Term.def(term.name, expr, (x) body),
+    ann:
+      let term = Fm.SmartMotive.replace(term.term, from, to, lv);
+      let type = Fm.SmartMotive.replace(term.type, from, to, lv);
+      Fm.Term.ann(term.done, term, type),
+    gol:
+      term,
+    hol:
+      term,
+    nat:
+      term,
+    chr:
+      term,
+    str:
+      term,
+    cse:
+      term,
+    ori:
+      Fm.SmartMotive.replace(term.expr, from, to, lv),
+  }
+
+Fm.SmartMotive.vals(expr: Fm.Term, type: Fm.Term, defs: Fm.Defs): List(Fm.Term)
+  case Fm.Term.reduce(type, defs) as type {
+    all: Fm.SmartMotive.vals(expr, type.body(Fm.Term.typ,Fm.Term.typ), defs),
+    _: Fm.SmartMotive.vals.cont(expr, type, [], defs),
+  }
+
+Fm.SmartMotive.vals.cont(expr: Fm.Term, term: Fm.Term, args: List(Fm.Term), defs: Fm.Defs): List(Fm.Term)
+  case Fm.Term.reduce(term, defs) as term {
+    app: Fm.SmartMotive.vals.cont(expr, term.func, List.cons<_>(term.argm, args), defs),
+    _: List.cons<_>(expr, List.tail<_>(List.reverse<_>(args))),
+  }
+
+Fm.SmartMotive.nams(name: Fm.Name, type: Fm.Term, defs: Fm.Defs): List(Fm.Name)
+  case Fm.Term.reduce(type, defs) as type {
+    all: Fm.SmartMotive.nams.cont(name, type.xtyp, [], defs),
+    _: [],
+  }
+
+Fm.SmartMotive.nams.cont(name: Fm.Name, term: Fm.Term, binds: List(Fm.Name), defs: Fm.Defs): List(Fm.Name)
+  case Fm.Term.reduce(term, defs) as term {
+    all: Fm.SmartMotive.nams.cont(
+      name,
+      term.body(Fm.Term.ref(term.self),Fm.Term.ref(term.name)),
+      List.cons<_>(String.flatten([name, ".", term.name]), binds),
+      defs),
+    _: List.cons<_>(name, List.tail<_>(binds)),
+  }
+
+Fm.SmartMotive.make(
+  name: Fm.Name,
+  expr: Fm.Term, 
+  type: Fm.Term,
+  moti: Fm.Term,
+  lv  : Nat,
+  defs: Fm.Defs,
+): Fm.Term
+  let vals = Fm.SmartMotive.vals(expr,type,defs);
+  let nams = Fm.SmartMotive.nams(name,type,defs);
+  let subs = List.zip<_,_>(nams,vals);
+  //let skip = Debug.log<_>(String.flatten(["-expr: ", Fm.Term.show(expr)]), (x) Unit.new);
+  //let skip = Debug.log<_>(String.flatten(["-type: ", Fm.Term.show(type)]), (x) Unit.new);
+  //let skip = Debug.log<_>(String.flatten(["-type: ", Fm.Term.show(Fm.Term.reduce(type,defs))]), (x) Unit.new);
+  //let skip = Debug.log<_>(String.flatten(["-vals: ", String.join(", ", List.mapped<_>(vals)<_>(Fm.Term.show))]), (x) Unit.new);
+  //let skip = Debug.log<_>(String.flatten(["-nams: ", String.join(", ", nams)]), (x) Unit.new);
+  //let skip = Debug.log<_>(String.flatten(["-moti: ", Fm.Term.show(moti)]), (x) Unit.new);
+  let moti = List.fold<_>(subs)<_>(moti, (sub,moti) case sub {
+    new: Fm.SmartMotive.replace(moti, sub.snd, Fm.Term.ref(sub.fst), lv),
+  });
+  //let skip = Debug.log<_>(String.flatten(["+moti: ", Fm.Term.show(moti)]), (x) Unit.new);
+  moti
 
 // Sugars
 // ======
@@ -2268,12 +2412,25 @@ Fm.Parser.case: Parser(Fm.Term)
     Fm.Parser.text("{");
     var cses = Parser.until<_>(Fm.Parser.text("}"), Fm.Parser.case.case);
     let cses = Map.from_list<_,_>(Fm.Name.to_bits, cses);
-    var moti = Parser.maybe<_>(do Parser {
-      Fm.Parser.text(":");
-      Fm.Parser.term;
-    });
+    var moti = Parser.first_of<_>([
+      // Explicit motive
+      do Parser {
+        Fm.Parser.text(":");
+        var term = Fm.Parser.term;
+        return Maybe.some<_>(term);
+      },
+      // Smart motive
+      do Parser {
+        Fm.Parser.text("!");
+        return Maybe.none<_>;
+      },
+      // Hole motive
+      do Parser {
+        return Maybe.some<_>(Fm.Term.hol(Bits.nil));
+      },
+    ]);
     var orig = Fm.Parser.stop(init);
-    let moti = case moti { none: Fm.Term.hol(Bits.nil), some: moti.value };
+    //let moti = case moti { none: Fm.Term.hol(Bits.nil), some: moti.value };
     return Fm.Term.ori(orig, Fm.Term.cse(Bits.nil, expr, name, with, cses, moti));
   }
 
@@ -3361,5 +3518,15 @@ Fm: IO(Unit)
     let _ = Fm.to_core.io.one;
     let _ = Fm.checker.io.one;
     let _ = Fm.checker.io.file;
-    Fm.checker.io.file("U32.fm");
+    Fm.checker.io.file("main.fm");
   }
+
+//Fm: String
+  //let parsed = Fm.Parser.term(0,"((a,b) b(a,a))((x) x)");
+  //case parsed {
+    //error: "error",
+    //value:
+      //let term = parsed.val;
+      //let term = Fm.Term.bind([], (x) x, term);
+      //Fm.Term.show(Fm.Term.normalize.low(term,0))
+  //}
