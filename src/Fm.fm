@@ -3046,8 +3046,16 @@ Fm.Synth.fix(
         Fm.Synth.fix(file, code, name, term, type, defs, errs.tail, Bool.true);
       },
       undefined_reference: do IO {
-        var defs = Fm.Synth.one(errs.head.name, defs);
-        Fm.Synth.fix(file, code, name, term, type, defs, errs.tail, Bool.true);
+        var loaded = Fm.Synth.load(errs.head.name, defs);
+        case loaded {
+          none: do IO {
+            Fm.Synth.fix(file, code, name, term, type, defs, errs.tail, fixd);
+          },
+          some: do IO {
+            var defs = Fm.Synth.one(errs.head.name, defs);
+            Fm.Synth.fix(file, code, name, term, type, defs, errs.tail, Bool.true);
+          },
+        };
       },
       patch: case errs.head.path {
         nil: do IO { // shouldn't happen
@@ -3075,7 +3083,7 @@ Fm.Synth.file_of(name: Fm.Name): String
       else String.cons(name.head, Fm.Synth.file_of(name.tail))
   }
 
-Fm.Synth.load(name: Fm.Name, defs: Fm.Defs): IO(Fm.Defs)
+Fm.Synth.load(name: Fm.Name, defs: Fm.Defs): IO(Maybe(Fm.Defs))
   do IO {
     let file = Fm.Synth.file_of(name);
     var code = IO.get_file(file);
@@ -3083,13 +3091,17 @@ Fm.Synth.load(name: Fm.Name, defs: Fm.Defs): IO(Fm.Defs)
     //let skip = Debug.log<_>(String.flatten(["loading file: ", file]), (x) Unit.new);
     case read {
       left: do IO { // TODO: should return parse error somehow... or perhaps add that on Fm.Synth.file?
-        return defs;
+        return Maybe.none<_>;
       },
       right: do IO {
         let defs = read.value;
         case Fm.get<_>(name, defs) as got {
-          none: do IO { return defs; },
-          some: Fm.Synth.one(name, defs)
+          none: do IO {
+            return Maybe.none<_>;
+          },
+          some: do IO {
+            return Maybe.some<_>(defs);
+          },
         };
       },
     };
@@ -3100,7 +3112,15 @@ Fm.Synth.one(name: Fm.Name, defs: Fm.Defs): IO(Fm.Defs)
   //let skip = Debug.log<_>(String.flatten(["Fm.Synth.one ", name]), (x) Unit.new);
   case Fm.get<_>(name, defs) as got {
     none: do IO {
-      Fm.Synth.load(name, defs);
+      var loaded = Fm.Synth.load(name, defs);
+      case loaded {
+        none: do IO {
+          return defs;
+        },
+        some: do IO {
+          Fm.Synth.one(name, loaded.value);
+        },
+      };
     },
     some: case got.value {
       new: do IO {
@@ -3341,5 +3361,5 @@ Fm: IO(Unit)
     let _ = Fm.to_core.io.one;
     let _ = Fm.checker.io.one;
     let _ = Fm.checker.io.file;
-    Fm.checker.io.file("Fm.fm");
+    Fm.checker.io.file("U32.fm");
   }
