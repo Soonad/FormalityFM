@@ -81,6 +81,20 @@ Map.to_list.go<A: Type>(xs: Map(A), key: Bits, list: List(Pair(Bits,A))): List(P
       list2
   }
 
+Map.keys<A: Type>(xs: Map(A)): List(Bits)
+  List.reverse<_>(Map.keys.go<_>(xs, Bits.nil, List.nil<_>))
+
+Map.keys.go<A: Type>(xs: Map(A), key: Bits, list: List(Bits)): List(Bits)
+  case xs {
+    new:
+      list,
+    tie: 
+      let list0 = case xs.val { none: list, some: List.cons<_>(Bits.reverse(key), list) };
+      let list1 = Map.keys.go<_>(xs.lft, Bits.0(key), list0);
+      let list2 = Map.keys.go<_>(xs.rgt, Bits.1(key), list1);
+      list2
+  }
+
 Map.values<A: Type>(xs: Map(A)): List(A)
   Map.values.go<A>(xs, List.nil<_>)
 

@@ -27,3 +27,16 @@ Bool.eql(a: Bool, b: Bool): Bool
     false: Bool.not(b),
   }
 
+// Converts to a string
+Bool.show(b: Bool): String
+  case b{
+    true : "Bool.true"
+    false: "Bool.false"
+  }
+
+// If-then-else
+Bool.if<A: Type>(cond: Bool, true_case: A, false_case: A): A
+  case cond{
+    true : true_case
+    false: false_case
+  }

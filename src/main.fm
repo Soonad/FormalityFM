@@ -1,3 +1,12 @@
+main.foo: Bool
+  Bool.and(Bool.true, Bool.false)
+
 main: Bool
-  let x = 3;
-  Bool.and(x, Bool.true)
+  let x = Nat.succ(Nat.zero);
+  Bool.and(Bool.true, Bool.true)
+
+main.ata: Bool
+  Bool.false
+
+main.uhu: Bool
+  Bool.true

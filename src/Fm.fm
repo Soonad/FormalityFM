@@ -211,6 +211,7 @@ type Fm.Status {
 type Fm.Def {
   new(
     file: String,
+    code: String,
     name: Fm.Name,
     term: Fm.Term,
     type: Fm.Term,
@@ -1294,190 +1295,6 @@ Fm.Term.check(
     };
   }
 
-// SYNTH: Fixes a list of errors, if possible
-Fm.Synth.fix(
-  file: String,
-  name: Fm.Name,
-  term: Fm.Term,
-  type: Fm.Term,
-  defs: Fm.Defs,
-  errs: List(Fm.Error),
-  fixd: Bool,
-): Maybe(Fm.Defs)
-  case errs {
-    nil:
-      if fixd then
-        let type = Fm.Term.bind([], (x) Bits.1(x), type);
-        let term = Fm.Term.bind([], (x) Bits.0(x), term);
-        let defs = Fm.set<_>(name, Fm.Def.new(file, name, term, type, Fm.Status.init), defs);
-        Maybe.some<_>(defs)
-      else
-        Maybe.none<_>,
-    cons: case errs.head {
-      waiting:
-        let defs = Fm.Synth.one(errs.head.name, defs);
-        Fm.Synth.fix(file, name, term, type, defs, errs.tail, Bool.true),
-      patch: 
-        case errs.head.path {
-          nil: // shouldn't happen
-            Maybe.none<_>,
-          0: // hole is on term
-            let term = Fm.Term.patch_at(errs.head.path.pred, term, (x) errs.head.term);
-            Fm.Synth.fix(file, name, term, type, defs, errs.tail, Bool.true),
-          1: // hole is on type
-            let type = Fm.Term.patch_at(errs.head.path.pred, type, (x) errs.head.term);
-            Fm.Synth.fix(file, name, term, type, defs, errs.tail, Bool.true),
-        },
-      // The error isn't fixable
-      _: Fm.Synth.fix(file, name, term, type, defs, errs.tail, fixd),
-    }
-  }
-
-// Synths one defs
-Fm.Synth.one(name: Fm.Name, defs: Fm.Defs): Fm.Defs
-  //Debug.log<_>(String.flatten(["synth ",name]), (x) 
-  case Fm.get<_>(name, defs) as got {
-    none: 
-      defs,
-    some: case got.value {
-      new:
-        let file = got.value.file;
-        let name = got.value.name;
-        let term = got.value.term;
-        let type = got.value.type;
-        let stat = got.value.stat;
-        //Debug.log<_>(String.flatten(["synth ", name, " ", case stat { init: "INIT", wait: "WAIT", done: "DONE", fail: "FAIL" }]), (x)
-        case stat {
-          init:
-            let defs = Fm.set<_>(name, Fm.Def.new(file, name, term, type, Fm.Status.wait), defs);
-            let checked = do Fm.Check {
-              var chk_type = Fm.Term.check(type, Maybe.some<_>(Fm.Term.typ), defs, [], Fm.MPath.1(Fm.MPath.nil), Maybe.none<_>);
-              var chk_term = Fm.Term.check(term, Maybe.some<_>(type), defs, [], Fm.MPath.0(Fm.MPath.nil), Maybe.none<_>);
-              return Unit.new;
-            };
-            case checked {
-              result:
-                if List.is_empty<_>(checked.errors) then
-                  let defs = Fm.set<_>(name, Fm.Def.new(file, name, term, type, Fm.Status.done), defs);
-                  //use skip = Debug.log<_>(String.flatten(["done: ", name]))
-                  defs
-                else
-                  let fixed = Fm.Synth.fix(file, name, term, type, defs, checked.errors, Bool.false);
-                  case fixed {
-                    none:
-                      let stat = Fm.Status.fail(checked.errors);
-                      let defs = Fm.set<_>(name, Fm.Def.new(file, name, term, type, stat), defs);
-                      //use skip = Debug.log<_>(String.flatten(["fail: ", name]))
-                      defs,
-                    some:
-                      //use skip = Debug.log<_>(String.flatten(["cont: ", name]))
-                      Fm.Synth.one(name, fixed.value),
-                  }
-            },
-          wait:
-            //use skip = Debug.log<_>(String.flatten(["wait ", name]))
-            defs,
-          done:
-            //use skip = Debug.log<_>(String.flatten(["done ", name]))
-            defs,
-          fail:
-            //use skip = Debug.log<_>(String.flatten(["fail ", name]))
-            defs,
-        }
-        //)
-    }
-  }
-  //)
-
-// Synths all defs of specific file
-Fm.Synth.file(file: String, defs: Fm.Defs): Fm.Defs
-  for defn in Map.values<_>(defs) with defs:
-    case defn {
-      new: 
-        if String.eql(defn.file, file) then
-          Fm.Synth.one(defn.name, defs)
-        else
-          defs
-    }
-
-// Synths all defs
-Fm.Synth.all(defs: Fm.Defs): Fm.Defs
-  for defn in Map.values<_>(defs) with defs:
-    case defn {
-      new: Fm.Synth.one(defn.name, defs)
-    }
-
-Fm.Synth.load.undefs(errors: List(Fm.Error)): List(String)
-  case errors {
-    nil: List.nil<_>,
-    cons:
-      let tail = Fm.Synth.load.undefs(errors.tail);
-      case errors.head {
-        undefined_reference: List.cons<_>(errors.head.name, tail),
-        _: tail,
-      }
-  }
-
-Fm.Synth.file_of(name: Fm.Name): String
-  case name {
-    nil:
-      ".fmfm"
-    cons:
-      if U16.eql(name.head, '.') then
-        ".fmfm"
-      else
-        String.cons(name.head, Fm.Synth.file_of(name.tail))
-  }
-
-//Fm.load.many(names: List(Fm.Name), defs: Fm.Defs): IO(Fm.Defs)
-  //case names {
-    //nil: do IO {
-      //return defs;
-    //},
-    //cons: do IO {
-      //var defs = Fm.load(names.head, defs);
-      //Fm.load.many(names.tail, defs);
-    //}
-  //}
-
-//Fm.load(name: Fm.Name, defs: Fm.Defs): IO(Fm.Defs)
-  //let skip = Debug.log<_>(String.flatten(["load_name ", name]), (x) Unit.new);
-  //let defs = Fm.Synth.one(name, defs);
-  //case Fm.get<_>(name, defs) as got {
-    //some: case got.value {
-      //new: case got.value.stat {
-        //init: do IO { return defs; },
-        //wait: do IO { return defs; },
-        //done: do IO { return defs; },
-        //fail: do IO {
-          //let undefs = Fm.load.undefs(got.value.stat.errors);
-          //let defs = Fm.load.many(undefs, defs);
-          //var defs = Fm.load(name, defs);
-          //return defs;
-        //}
-      //}
-    //},
-    //none: do IO {
-      //let file = Fm.Synth.file_of(name);
-      //let skip = Debug.log<_>(String.flatten(["load_file ", file]), (x) Unit.new);
-      //var code = IO.get_file(file);
-      //case code {
-        //nil: do IO {
-          //return defs;
-        //},
-        //cons: do IO {
-          //let defs = Fm.Defs.read(file, code, defs);
-          //case Fm.get<_>(name, defs) as got {
-            //none: do IO {
-              //return defs;
-            //},
-            //some: Fm.load(name, defs)
-          //};
-        //}
-      //};
-    //}
-  //}
-
 // Sugars
 // ======
 
@@ -2415,7 +2232,7 @@ Fm.Parser.case.with: Parser(Fm.Def)
     var type = Fm.Parser.term;
     Fm.Parser.text("=");
     var term = Fm.Parser.term;
-    return Fm.Def.new("", name, term, type, Fm.Status.init);
+    return Fm.Def.new("", "", name, term, type, Fm.Status.init);
   }
 
 // Parses a case statement of a case
@@ -2689,7 +2506,7 @@ Fm.Parser.datatype: Parser(Fm.Datatype)
   }
 
 // Parses a definition
-Fm.Parser.file.def(file: String, defs: Fm.Defs): Parser(Fm.Defs)
+Fm.Parser.file.def(file: String, code: String, defs: Fm.Defs): Parser(Fm.Defs)
   do Parser {
     var name = Fm.Parser.name;
     var args = Parser.many<_>(Fm.Parser.binder);
@@ -2701,12 +2518,12 @@ Fm.Parser.file.def(file: String, defs: Fm.Defs): Parser(Fm.Defs)
     let term = Fm.Parser.make_lambda(List.mapped<_>(args)<_>((x) case x { new: x.name }),term);
     let type = Fm.Term.bind([], (x) Bits.1(x), type);
     let term = Fm.Term.bind([], (x) Bits.0(x), term);
-    let defs = Fm.set<_>(name, Fm.Def.new(file, name, term, type, Fm.Status.init), defs);
+    let defs = Fm.set<_>(name, Fm.Def.new(file, code, name, term, type, Fm.Status.init), defs);
     return defs;
   }
 
 // Parses an ADT
-Fm.Parser.file.adt(file: String, defs: Fm.Defs): Parser(Fm.Defs)
+Fm.Parser.file.adt(file: String, code: String, defs: Fm.Defs): Parser(Fm.Defs)
   do Parser {
     var adt = Fm.Parser.datatype;
     case adt {
@@ -2715,7 +2532,7 @@ Fm.Parser.file.adt(file: String, defs: Fm.Defs): Parser(Fm.Defs)
         let term = Fm.Term.bind([], (x) Bits.1(x), term);
         let type = Fm.Datatype.build_type(adt);
         let type = Fm.Term.bind([], (x) Bits.0(x), type);
-        let defs = Fm.set<_>(adt.name, Fm.Def.new(file, adt.name, term, type, Fm.Status.init), defs);
+        let defs = Fm.set<_>(adt.name, Fm.Def.new(file, code, adt.name, term, type, Fm.Status.init), defs);
         let defs = List.fold<_>(adt.ctrs)<_>(defs, (ctr, defs)
           let typ_name = adt.name;
           let ctr_name = String.flatten([typ_name, Fm.Name.read("."), case ctr { new: ctr.name }]);
@@ -2723,14 +2540,14 @@ Fm.Parser.file.adt(file: String, defs: Fm.Defs): Parser(Fm.Defs)
           let ctr_term = Fm.Term.bind([], (x) Bits.1(x), ctr_term);
           let ctr_type = Fm.Constructor.build_type(adt, ctr);
           let ctr_type = Fm.Term.bind([], (x) Bits.0(x), ctr_type);
-          Fm.set<_>(ctr_name, Fm.Def.new(file, ctr_name, ctr_term, ctr_type, Fm.Status.init), defs));
+          Fm.set<_>(ctr_name, Fm.Def.new(file, code, ctr_name, ctr_term, ctr_type, Fm.Status.init), defs));
         return defs;
       }
     };
   }
 
 // Parses the end of a file
-Fm.Parser.file.end(file: String, defs: Fm.Defs): Parser(Fm.Defs)
+Fm.Parser.file.end(file: String, code: String, defs: Fm.Defs): Parser(Fm.Defs)
   do Parser {
     Fm.Parser.spaces;
     Parser.eof;
@@ -2738,7 +2555,7 @@ Fm.Parser.file.end(file: String, defs: Fm.Defs): Parser(Fm.Defs)
   }
 
 // Parses many definitions
-Fm.Parser.file(file: String, defs: Fm.Defs): Parser(Fm.Defs)
+Fm.Parser.file(file: String, code: String, defs: Fm.Defs): Parser(Fm.Defs)
   do Parser {
     var stop = Parser.is_eof;
     if stop then do Parser {
@@ -2747,15 +2564,15 @@ Fm.Parser.file(file: String, defs: Fm.Defs): Parser(Fm.Defs)
       do Parser {
         Fm.Parser.text("#");
         var file = Fm.Parser.name1;
-        Fm.Parser.file(file, defs);
+        Fm.Parser.file(file, code, defs);
       },
       do Parser {
         var defs = Parser.first_of<_>([
-          Fm.Parser.file.def(file, defs),
-          Fm.Parser.file.adt(file, defs),
-          Fm.Parser.file.end(file, defs),
+          Fm.Parser.file.def(file, code, defs),
+          Fm.Parser.file.adt(file, code, defs),
+          Fm.Parser.file.end(file, code, defs),
         ]);
-        Fm.Parser.file(file, defs);
+        Fm.Parser.file(file, code, defs);
       },
     ]);
   }
@@ -2846,7 +2663,7 @@ Fm.Term.read(code: String): Maybe(Fm.Term)
 
 // Reads a defs from string
 Fm.Defs.read(file: String, code: String, defs: Fm.Defs): Either(String, Fm.Defs)
-  case Fm.Parser.file(file, defs, 0, code) as parsed {
+  case Fm.Parser.file(file, code, defs, 0, code) as parsed {
     error:
       let err = parsed.err;
       let hig = Fm.highlight(code, parsed.idx, Nat.succ(parsed.idx));
@@ -3124,70 +2941,6 @@ Fm.Comp.hs.defs(defs: Fm.Defs): String
         String.flatten([code, line, "\n"])
     }
 
-// Reports
-// =======
-
-Fm.Defs.report.get_file_code(file: String, files: List(Fm.File)): String
-  case files {
-    nil: "",
-    cons: case files.head {
-      new:
-        if String.eql(files.head.name, file) then
-          files.head.code
-        else
-          Fm.Defs.report.get_file_code(file, files.tail)
-    }
-  }
-
-// REPORT: Synths, checks and reports errors of a defs
-Fm.Defs.report(files: List(Fm.File), defs: Fm.Defs): String
-  let errors = "";
-  let errors = for defn in Map.values<_>(defs):
-    case defn {
-      new: case defn.stat {
-        init: errors,
-        wait: errors,
-        done: errors,
-        fail: case defn.stat.errors {
-          nil:
-            errors,
-          cons: 
-            let name_str = Fm.Name.show(defn.name);
-            let relevant_errors = Fm.Error.relevant(defn.stat.errors, Bool.false);
-            for error in relevant_errors with errors:
-              String.flatten([
-                errors,
-                "On ", name_str, ":\n",
-                Fm.Error.show(error, defs),
-                case Fm.Error.origin(error) as origin {
-                  none: "",
-                  some: case origin.value {
-                    new:
-                      let code = Fm.Defs.report.get_file_code(defn.file, files);
-                      let code = Fm.highlight(code, origin.value.from, origin.value.upto);
-                      String.flatten(["On code:\n", code, "\n"])
-                  },
-                },
-                "\n",
-              ])
-        }
-      }
-    };
-  let types = "";
-  let types = for defn in Map.values<_>(defs):
-    case defn {
-      new: case defn.stat {
-        init: types,
-        wait: types,
-        done: String.flatten([types, defn.name, ": ", Fm.Term.show(defn.type), "\n"]),
-        fail: types,
-      }
-    };
-  case errors {
-    cons: errors,
-    nil: String.flatten([types, "\nAll terms check."]),
-  }
-
 // FormCore
 // ========
 
@@ -3245,7 +2998,6 @@ Fm.Term.core(term: Fm.Term): String
       Fm.Term.core(term.expr),
   }
 
-
 // Converts everything to FormCore
 Fm.Defs.core(defs: Fm.Defs): String
   let result = "";
@@ -3264,67 +3016,350 @@ Fm.Defs.core(defs: Fm.Defs): String
       }
     }
 
+// Synth
+// =====
+
+// SYNTH: Fixes a list of errors, if possible
+Fm.Synth.fix(
+  file: String,
+  code: String,
+  name: Fm.Name,
+  term: Fm.Term,
+  type: Fm.Term,
+  defs: Fm.Defs,
+  errs: List(Fm.Error),
+  fixd: Bool,
+): IO(Maybe(Fm.Defs))
+  case errs {
+    nil:
+      if fixd then do IO {
+        let type = Fm.Term.bind([], (x) Bits.1(x), type);
+        let term = Fm.Term.bind([], (x) Bits.0(x), term);
+        let defs = Fm.set<_>(name, Fm.Def.new(file, code, name, term, type, Fm.Status.init), defs);
+        return Maybe.some<_>(defs);
+      } else do IO {
+        return Maybe.none<_>;
+      },
+    cons: case errs.head {
+      waiting: do IO {
+        var defs = Fm.Synth.one(errs.head.name, defs);
+        Fm.Synth.fix(file, code, name, term, type, defs, errs.tail, Bool.true);
+      },
+      undefined_reference: do IO {
+        var loaded = Fm.Synth.load(errs.head.name, defs);
+        case loaded {
+          none: do IO {
+            Fm.Synth.fix(file, code, name, term, type, defs, errs.tail, fixd);
+          },
+          some: do IO {
+            var defs = Fm.Synth.one(errs.head.name, defs);
+            Fm.Synth.fix(file, code, name, term, type, defs, errs.tail, Bool.true);
+          },
+        };
+      },
+      patch: case errs.head.path {
+        nil: do IO { // shouldn't happen
+          return Maybe.none<_>;
+        },
+        0: do IO { // hole is on term
+          let term = Fm.Term.patch_at(errs.head.path.pred, term, (x) errs.head.term);
+          Fm.Synth.fix(file, code, name, term, type, defs, errs.tail, Bool.true);
+        },
+        1: do IO { // hole is on type
+          let type = Fm.Term.patch_at(errs.head.path.pred, type, (x) errs.head.term);
+          Fm.Synth.fix(file, code, name, term, type, defs, errs.tail, Bool.true);
+        },
+      },
+      // The error isn't fixable
+      _: Fm.Synth.fix(file, code, name, term, type, defs, errs.tail, fixd),
+    }
+  }
+
+Fm.Synth.file_of(name: Fm.Name): String
+  case name {
+    nil: ".fm"
+    cons: if U16.eql(name.head, '.')
+      then ".fm"
+      else String.cons(name.head, Fm.Synth.file_of(name.tail))
+  }
+
+Fm.Synth.load(name: Fm.Name, defs: Fm.Defs): IO(Maybe(Fm.Defs))
+  do IO {
+    let file = Fm.Synth.file_of(name);
+    var code = IO.get_file(file);
+    let read = Fm.Defs.read(file, code, defs);
+    //let skip = Debug.log<_>(String.flatten(["loading file: ", file]), (x) Unit.new);
+    case read {
+      left: do IO { // TODO: should return parse error somehow... or perhaps add that on Fm.Synth.file?
+        return Maybe.none<_>;
+      },
+      right: do IO {
+        let defs = read.value;
+        case Fm.get<_>(name, defs) as got {
+          none: do IO {
+            return Maybe.none<_>;
+          },
+          some: do IO {
+            return Maybe.some<_>(defs);
+          },
+        };
+      },
+    };
+  }
+
+// Synths one def
+Fm.Synth.one(name: Fm.Name, defs: Fm.Defs): IO(Fm.Defs)
+  //let skip = Debug.log<_>(String.flatten(["Fm.Synth.one ", name]), (x) Unit.new);
+  case Fm.get<_>(name, defs) as got {
+    none: do IO {
+      var loaded = Fm.Synth.load(name, defs);
+      case loaded {
+        none: do IO {
+          return defs;
+        },
+        some: do IO {
+          Fm.Synth.one(name, loaded.value);
+        },
+      };
+    },
+    some: case got.value {
+      new: do IO {
+        let file = got.value.file;
+        let code = got.value.code;
+        let name = got.value.name;
+        let term = got.value.term;
+        let type = got.value.type;
+        let stat = got.value.stat;
+        //let skip = Debug.log<_>(String.flatten(["= ", Fm.Term.show(term)]), (x) Unit.new);
+        //let skip = Debug.log<_>(String.flatten([": ", Fm.Term.show(type)]), (x) Unit.new);
+        //Debug.log<_>(String.flatten(["synth ", name, " ", case stat { init: "INIT", wait: "WAIT", done: "DONE", fail: "FAIL" }]), (x)
+        case stat {
+          wait: do IO { return defs; },
+          done: do IO { return defs; },
+          fail: do IO { return defs; },
+          init: do IO {
+            let defs = Fm.set<_>(name, Fm.Def.new(file, code, name, term, type, Fm.Status.wait), defs);
+            let checked = do Fm.Check {
+              var chk_type = Fm.Term.check(type, Maybe.some<_>(Fm.Term.typ), defs, [], Fm.MPath.1(Fm.MPath.nil), Maybe.none<_>);
+              var chk_term = Fm.Term.check(term, Maybe.some<_>(type), defs, [], Fm.MPath.0(Fm.MPath.nil), Maybe.none<_>);
+              return Unit.new;
+            };
+            case checked {
+              result:
+                //let skip = Debug.log<_>(String.join("\n", List.mapped<_>(checked.errors)<_>((x) String.concat("-- ", Fm.Error.show(x,Map.new<_>)))), (x) Unit.new);
+                if List.is_empty<_>(checked.errors) then do IO {
+                  let defs = Fm.set<_>(name, Fm.Def.new(file, code, name, term, type, Fm.Status.done), defs);
+                  //use skip = Debug.log<_>(String.flatten(["done: ", name]))
+                  return defs;
+                } else do IO {
+                  var fixed = Fm.Synth.fix(file, code, name, term, type, defs, checked.errors, Bool.false);
+                  case fixed {
+                    none: do IO {
+                      let stat = Fm.Status.fail(checked.errors);
+                      let defs = Fm.set<_>(name, Fm.Def.new(file, code, name, term, type, stat), defs);
+                      return defs;
+                    },
+                    some: Fm.Synth.one(name, fixed.value),
+                  };
+                }
+            };
+          }
+        };
+      }
+    }
+  }
+
+// Synths many defs
+Fm.Synth.many(names: List(String), defs: Fm.Defs): IO(Fm.Defs)
+  case names {
+    nil: do IO {
+      return defs;
+    },
+    cons: do IO {
+      var defs = Fm.Synth.one(names.head, defs);
+      Fm.Synth.many(names.tail, defs);
+    },
+  }
+
+Fm.Synth.file(file: String, defs: Fm.Defs): IO(Either(String, Pair(List(Fm.Name), Fm.Defs)))
+  do IO {
+    var code = IO.get_file(file);
+    let read = Fm.Defs.read(file, code, defs);
+    case read {
+      left: do IO {
+        return Either.left<_,_>(read.value);
+      },
+      right: do IO {
+        let file_defs = read.value;
+        let file_keys = Map.keys<_>(file_defs);
+        let file_nams = List.mapped<_>(file_keys)<_>(Fm.Name.from_bits);
+        var defs = Fm.Synth.many(file_nams, defs);
+        return Either.right<_,_>({file_nams, defs});
+      },
+    };
+  }
+
+// Load
+// ====
+
+//Fm.Load.missing(errors: List(Fm.Error)): List(String)
+  //case errors {
+    //nil: List.nil<_>,
+    //cons:
+      //let tail = Fm.Load.missing(errors.tail);
+      //case errors.head {
+        //undefined_reference: List.cons<_>(errors.head.name, tail),
+        //_: tail,
+      //}
+  //}
+
+//Fm.Load.one(name: Fm.Name, defs: Fm.Defs): IO(Fm.Defs)
+  //let skip = Debug.log<_>(String.flatten(["Fm.Load.one ", name]), (x) Unit.new);
+  ////let skip = Debug.log<_>(String.flatten(["load_name ", name, " ", String.join("|",List.mapped<_>(Map.keys<_>(defs))<_>(Fm.Name.from_bits))]), (x) Unit.new);
+  //let defs = Fm.Synth.one(name, defs);
+  //case Fm.get<_>(name, defs) as got {
+    //some: case got.value {
+      //new: 
+        //let file = got.value.file;
+        //let code = got.value.code;
+        //let name = got.value.name;
+        //let term = got.value.term;
+        //let type = got.value.type;
+        //let stat = got.value.stat;
+        //case stat {
+          //init: do IO { return defs; },
+          //wait: do IO { return defs; },
+          //done: do IO { return defs; },
+          //fail: do IO {
+            //let missing = Fm.Load.missing(stat.errors);
+            //case missing {
+              //nil : do IO { return defs; },
+              //cons: do IO {
+                //let defs = Fm.set<_>(name, Fm.Def.new(file,code,name,term,type,Fm.Status.init), defs);
+                //var defs = Fm.Load.many(missing, defs);
+                //var defs = Fm.Load.one(name, defs);
+                //return defs;
+              //},
+            //};
+          //},
+        //}
+    //},
+    //none: do IO {
+      //let file = Fm.Load.file_of(name);
+      //var code = IO.get_file(file);
+      //let read = Fm.Defs.read(file, code, defs);
+      //let skip = Debug.log<_>(String.flatten(["loading file: ", file]), (x) Unit.new);
+      //case read {
+        //left: do IO { return defs; },
+        //right: do IO {
+          //let defs = read.value;
+          //case Fm.get<_>(name, defs) as got {
+            //none: do IO { return defs; },
+            //some: Fm.Load.one(name, defs)
+          //};
+        //},
+      //};
+    //},
+  //}
+
+//Fm.Load.many(names: List(Fm.Name), defs: Fm.Defs): IO(Fm.Defs)
+  //do IO {
+    //case names {
+      //nil: do IO { return defs; },
+      //cons: do IO {
+        //var defs = Fm.Load.one(names.head, defs);
+        //Fm.Load.many(names.tail, defs);
+      //}
+    //};
+  //}
+
 // API
 // ===
 
-type Fm.File {
-  new(name: String, code: String)
-}
-
-Fm.exec(files: List(Fm.File), report: Fm.Defs -> String): String
-  let reads = Pair.new<String,Fm.Defs>("", Map.new<_>);
-  let reads = for file in files:
-    case reads {
-      new: case file {
-        new: case reads {
-          new: case Fm.Defs.read(file.name, file.code, reads.snd) as parsed {
-            left: Pair.new<String,Fm.Defs>(String.flatten([reads.fst,"On ",file.name,":\n",parsed.value,"\n"]), reads.snd),
-            right: Pair.new<String,Fm.Defs>(reads.fst, parsed.value),
-          }
-        }
-      }
-    };
-  case reads {
-    new:
-      let errs = reads.fst;
-      let defs = reads.snd;
+Fm.Defs.report.go(defs: Fm.Defs, list: List(Fm.Name), errs: String, typs: String): String
+  case list {
+    nil: String.flatten([
+      typs, "\n",
       case errs {
-        nil : report(defs),
+        nil: "All terms check.",
         cons: errs,
+      }
+    ]),
+    cons:
+      let name = list.head;
+      case Fm.get<_>(name, defs) as got {
+        none: Fm.Defs.report.go(defs, list.tail, errs, typs),
+        some: case got.value {
+          new:
+            let typs = String.flatten([typs, name,": ",Fm.Term.show(got.value.type),"\n"]);
+            case got.value.stat {
+              init: Fm.Defs.report.go(defs, list.tail, errs, typs),
+              wait: Fm.Defs.report.go(defs, list.tail, errs, typs),
+              done: Fm.Defs.report.go(defs, list.tail, errs, typs),
+              fail: case got.value.stat.errors {
+                nil: Fm.Defs.report.go(defs, list.tail, errs, typs),
+                cons:
+                  let name_str = Fm.Name.show(got.value.name);
+                  let rel_errs = Fm.Error.relevant(got.value.stat.errors, Bool.false);
+                  let rel_msgs = List.mapped<_>(rel_errs)<_>((err)
+                    String.flatten([
+                      Fm.Error.show(err, defs),
+                      case Fm.Error.origin(err) as origin {
+                        none: "",
+                        some: case origin.value {
+                          new: String.flatten([
+                            "Inside '", got.value.file, "':\n",
+                            Fm.highlight(got.value.code, origin.value.from, origin.value.upto),
+                            "\n",
+                          ])
+                        },
+                      }
+                    ]));
+                  let errs = String.flatten([errs, String.join("\n", rel_msgs), "\n"]);
+                  Fm.Defs.report.go(defs, list.tail, errs, typs)
+              }
+            }
+        }
       }
   }
 
-Fm.to_core_one(files: List(Fm.File), name: String): String
-  Fm.exec(files, (defs) Fm.Defs.core(Fm.Synth.one(name,defs)))
+Fm.Defs.report(defs: Fm.Defs, list: List(Fm.Name)): String
+  Fm.Defs.report.go(defs, list, "", "")
 
-Fm.to_core_file(files: List(Fm.File), file: String): String
-  Fm.exec(files, (defs) Fm.Defs.core(Fm.Synth.file(file,defs)))
+Fm.to_core.io.one(name: String): IO(String)
+  do IO {
+    var defs = Fm.Synth.one(name, Map.new<_>);
+    return Fm.Defs.core(defs);
+  }
 
-Fm.to_core_all(files: List(Fm.File)): String
-  Fm.exec(files, (defs) Fm.Defs.core(Fm.Synth.all(defs)))
+Fm.checker.io.one(name: String): IO(Unit)
+  do IO {
+    var defs = Fm.Synth.one(name, Map.new<_>);
+    IO.print(Fm.Defs.report(defs, [name]));
+  }
 
-Fm.check_all(files: List(Fm.File)): String
-  Fm.exec(files, (defs) Fm.Defs.report(files, Fm.Synth.all(defs)))
-
-Fm.check_file(files: List(Fm.File), file: String): String
-  Fm.exec(files, (defs) Fm.Defs.report(files, Fm.Synth.file(file,defs)))
-
-Fm.check_one(files: List(Fm.File), name: String): String
-  Fm.exec(files, (defs) Fm.Defs.report(files, Fm.Synth.one(name,defs)))
-
-Fm.exports: Unit
-  let _ = Fm.to_core_all;
-  let _ = Fm.to_core_file;
-  let _ = Fm.to_core_one;
-  let _ = Fm.check_all;
-  let _ = Fm.check_file;
-  let _ = Fm.check_one;
-  Unit.new
+Fm.checker.io.file(file: String): IO(Unit)
+  do IO {
+    var loaded = Fm.Synth.file(file, Map.new<_>);
+    case loaded {
+      left: do IO {
+        IO.print(String.flatten(["On '", file, "':"]));
+        IO.print(loaded.value);
+      },
+      right: case loaded.value {
+        new: do IO {
+          let nams = loaded.value.fst;
+          let defs = loaded.value.snd;
+          IO.print(Fm.Defs.report(defs, nams));
+        }
+      },
+    };
+  }
 
 Fm: IO(Unit)
   do IO {
-    let file = "Pair.fm";
-    var code = IO.get_file(file);
-    let files = [Fm.File.new(file, code)];
-    IO.print(Fm.check_all(files));
+    let _ = Fm.to_core.io.one;
+    let _ = Fm.checker.io.one;
+    let _ = Fm.checker.io.file;
+    Fm.checker.io.file("U32.fm");
   }
