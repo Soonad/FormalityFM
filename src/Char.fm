@@ -26,3 +26,5 @@ Char.new(
   let kx = Word.nil;
   U16.new(k0(k1(k2(k3(k4(k5(k6(k7(k8(k9(kA(kB(kC(kD(kE(kF(kx)))))))))))))))))
 
+Char.eql(a: Char, b: Char): Bool
+  U16.eql(a, b)
