@@ -1,0 +1,15 @@
+//type main.Hold ~ (b: Bool) {
+  //new ~ (b: Bool.true)
+//}
+
+//main(b: Bool, hold: main.Hold(b)): b == Bool.true
+  //case hold {
+    //new: ?a
+  //}!
+
+main.and(b: Bool): Bool.not(Bool.not(b)) == b
+  case b {
+    true  : Equal.refl<_, _>
+    false : Equal.refl<_, _>
+  }!
+
