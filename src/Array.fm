@@ -34,6 +34,7 @@ Array.extract_tip<A: Type>(arr: Array(A,0)): A
       }
 
 // Given array `arr` and little-endian word `idx`, extracts value `arr[idx]`.
+// TODO: infinity loop
 // Array.get<A:Type, depth:Nat>(idx: Word(depth), arr: Array(A,depth)): A
 //   def P = (depth) Array(A,depth) -> A
 //   def nil = Array.extract_tip<A>

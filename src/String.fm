@@ -282,4 +282,6 @@ String.to_bits(str: String): Bits
     }
   }
 
-  
+// Print a string
+String.show(xs: String): String
+  String.flatten(["\"",xs,"\""])
