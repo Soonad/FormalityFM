@@ -1039,16 +1039,9 @@ Fm.Term.equal.patch(path: Bits, term: Fm.Term): Fm.Check(Bool)
 
 // EQUAL: Determines if two terms are equal
 Fm.Term.equal(a: Fm.Term, b: Fm.Term, defs: Fm.Defs, lv: Nat, seen: Set): Fm.Check(Bool)
-  let ah = Fm.Term.serialize(a, lv, lv, Bits.e);
-  let bh = Fm.Term.serialize(b, lv, lv, Bits.e);
+  let ah = Fm.Term.serialize(Fm.Term.reduce(a,Map.new<_>), lv, lv, Bits.e);
+  let bh = Fm.Term.serialize(Fm.Term.reduce(b,Map.new<_>), lv, lv, Bits.e);
   if Bits.eql(ah, bh) then do Fm.Check {
-    //let ue = Debug.log<_>(String.flatten([
-      //"==", Fm.Term.show(a), "\n",
-      //"==", Fm.Term.show(b), "\n",
-      //Bits.show(ah), "\n",
-      //Bits.show(bh), "\n",
-      //"~",
-    //]), (x) Unit.new);
     return Bool.true;
   } else do Fm.Check {
     let a1 = Fm.Term.reduce(a, defs);
@@ -1468,14 +1461,12 @@ Fm.Term.unroll_nat(natx: Nat): Fm.Term
 
 // Unrolls a character
 Fm.Term.unroll_chr(chrx: Char): Fm.Term
-  case chrx {
-    new: 
-      let term = Fm.Term.ref(Fm.Name.read("Word.from_bits"));
-      let term = Fm.Term.app(term, Fm.Term.nat(16));
-      let term = Fm.Term.app(term, Fm.Term.unroll_chr.bits(Word.to_bits<16>(chrx.value)));
-      let term = Fm.Term.app(Fm.Term.ref(Fm.Name.read("U16.new")), term);
-      term
-  }
+  let bits = U16.to_bits(chrx);
+  let term = Fm.Term.ref(Fm.Name.read("Word.from_bits"));
+  let term = Fm.Term.app(term, Fm.Term.nat(16));
+  let term = Fm.Term.app(term, Fm.Term.unroll_chr.bits(bits));
+  let term = Fm.Term.app(Fm.Term.ref(Fm.Name.read("U16.new")), term);
+  term
 
 Fm.Term.unroll_chr.bits(bits: Bits): Fm.Term
   case bits {
@@ -3530,12 +3521,11 @@ Fm.checker.io.file(file: String): IO(Unit)
     };
   }
 
-
 Fm: IO(Unit)
   do IO {
     let _ = Fm.to_core.io.one;
     let _ = Fm.checker.io.one;
     let _ = Fm.checker.io.file;
     let _ = Fm.Term.read;
-    Fm.checker.io.file("Fm.fm");
+    Fm.checker.io.file("Main.fm");
   }

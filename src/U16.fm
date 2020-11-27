@@ -84,3 +84,8 @@ U16.show_hex(a: U16): String
   }
 
 
+U16.to_bits(a: U16): Bits
+  case a {
+    new: Word.to_bits<16>(a.value)
+  }
+

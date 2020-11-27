@@ -1,39 +1,19 @@
-Main: Bool
-  if Bool.true then
-    Bool.false
-  else
-    Bool.false
+Main.add(n: Nat, m: Nat): Nat
+  case n {
+    zero: m,
+    succ: Nat.succ(Main.add(n.pred, m)),
+  }
 
+Main.ones(n: Nat, r: List(Nat)): List(Nat)
+  case n {
+    zero: r,
+    succ: Main.ones(n.pred, List.cons<_>(1,r)),
+  }
 
-
-
-
-
-
-
-
-
-
-//type main.Hold ~ (b: Bool) {
-  //new ~ (b: Bool.true)
-//}
-
-//main(b: Bool, hold: main.Hold(b)): b == Bool.true
-  //case hold {
-    //new: ?a
-  //}!
-
-// refl  ~> Equal.refl<_,_>
-// some  ~> Maybe.some<_>
-// none  ~> Maybe.none<_>
-// 1 & 2 ~> List.nil<_>
-
-//main.and(b: Bool): Bool.not(Bool.not(b)) == b
-  //case b {
-    //true  : Equal.refl<_, _>
-    //false : Equal.refl<_, _>
-  //}!
-
-
-//Main: Bool
-  //Bool.foo
+Main: _
+  let sum = 0;
+  let sum = for i in Main.ones(4000,[]):
+    Main.add(sum, i);
+  let sum = for i in Main.ones(4000,[]):
+    Main.add(sum, i);
+  sum

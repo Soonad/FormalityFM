@@ -3,7 +3,7 @@
 var fm = require("./formality.js");
 var fs = require("fs");
 var path = require("path");
-var {fmc_to_js} = require("FormCore-lang");
+var {fmc_to_js} = require("formcore-lang");
 
 if (!process.argv[2] || process.argv[2] === "--help" || process.argv[2] === "-h") {
   console.log("# Formality");
