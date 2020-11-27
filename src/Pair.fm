@@ -12,3 +12,7 @@ Pair.snd<A: Type, B: Type>(pair: Pair(A, B)): B
     new: pair.snd
   }
 
+Pair.map<A: Type, B: Type, C: Type>(f: B -> C, p: Pair(A, B)): Pair(A, C)
+  case p {
+    new: Pair.new<A, C>(p.fst, f(p.snd))
+  }

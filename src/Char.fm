@@ -28,3 +28,25 @@ Char.new(
 
 Char.eql(a: Char, b: Char): Bool
   U16.eql(a, b)
+
+Char.newline: Char
+  Char.new(
+    Bit.0, Bit.0, Bit.0, Bit.0,
+    Bit.0, Bit.0, Bit.0, Bit.0,
+    Bit.0, Bit.0, Bit.0, Bit.0,
+    Bit.1, Bit.0, Bit.1, Bit.0)
+
+// Parses a character. Example: `Char.parse("x")`
+ Char.parse(str: String): Char.parse.type(str)
+   case str {
+     nil : Unit.new,
+     cons: str.head
+   } : Char.parse.type(str)
+
+Char.parse.type(str: String): Type
+   case str {
+     nil : Unit,
+     cons: Char
+   }
+
+   
