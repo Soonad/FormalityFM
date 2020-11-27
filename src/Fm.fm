@@ -3284,7 +3284,6 @@ Fm.Synth.load(name: Fm.Name, defs: Fm.Defs): IO(Maybe(Fm.Defs))
 
 // Synths one def
 Fm.Synth.one(name: Fm.Name, defs: Fm.Defs): IO(Fm.Defs)
-  let skip = Debug.log<_>(String.flatten(["synth ", name]), (x) Unit.new);
   case Fm.get<_>(name, defs) as got {
     none: do IO {
       var loaded = Fm.Synth.load(name, defs);

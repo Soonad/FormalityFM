@@ -1,3 +1,19 @@
+Main: Bool
+  if Bool.true then
+    Bool.false
+  else
+    Bool.false
+
+
+
+
+
+
+
+
+
+
+
 //type main.Hold ~ (b: Bool) {
   //new ~ (b: Bool.true)
 //}
