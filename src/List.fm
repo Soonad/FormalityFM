@@ -3,12 +3,14 @@ type List <A: Type> {
   cons(head: A, tail: List(A)),
 }
 
+// Get the tail of a nonempty list
 List.tail<A: Type>(xs: List(A)): List(A)
-  case xs {
-    nil: List.nil<_>,
-    cons: xs.tail,
+  case xs{
+    nil : List.nil<_>
+    cons: xs.tail
   }
 
+// Returns the first elements of a list, discards the rest.
 List.take<A: Type>(n: Nat, xs: List(A)): List(A)
   case xs {
     nil : List.nil<_>,
@@ -18,16 +20,128 @@ List.take<A: Type>(n: Nat, xs: List(A)): List(A)
     }
   }
 
+// Return elements while a condition is true
+List.take_while<A: Type>(f: A -> Bool, xs: List(A)) : List(A)
+  case xs{
+    nil : List.nil<_>
+    cons: case f(xs.head){
+      true : List.cons<_>(xs.head,List.take_while<_>(f, xs.tail))
+      false: List.nil<_>
+    }
+  }
 
+// Appends element to the end of the list.
+List.append<A: Type>(as: List(A), a: A): List(A)
+  case as{
+    nil : List.pure<_>(a)
+    cons: List.cons<_>(as.head,List.append<_>(as.tail, a))
+  }
 
+// A list with only one element.
+List.pure<A: Type>(x: A): List(A)
+  List.cons<A>(x)(List.nil<A>)
+
+// Removes the first elements of a list.
+List.drop<A: Type>(n: Nat, xs: List(A)): List(A)
+  case n{
+    zero: xs
+    succ: case xs{
+      nil: List.nil<_>
+      cons: List.drop<_>(n.pred,xs.tail)
+    }
+  }
+
+// Remove elements while a condition is true
+List.drop_while<A: Type>(f: A -> Bool, xs: List(A)): List(A)
+  case xs{
+    nil : List.nil<_>
+    cons: case f(xs.head){
+      true : List.drop_while<_>(f,xs.tail)
+      false: xs
+      }
+  }
+
+// Removes an element from the list at given index.
+List.delete_at<A: Type>(idx: Nat, list: List(A)): List(A)
+  case idx{
+    zero: List.tail<A>(list)
+    succ: case list{
+      nil : list
+      cons: List.cons<A>(list.head, List.delete_at<A>(idx.pred, list.tail))
+    }
+  }
+
+// Updates the element at given position
+List.update_at<A: Type>(index: Nat, fn: A -> A, list: List(A)): List(A)
+  case list{
+    nil : List.nil<_>
+    cons: case index{
+      zero: List.cons<_>(fn(list.head), list.tail)
+      succ: List.cons<_>(list.head, List.update_at<A>(index.pred, fn, list.tail))
+    }
+  }
+
+// Do all elements satisfy a condition?
+List.all<A: Type>(cond: A -> Bool, list: List(A)): Bool
+  case list{
+    nil : Bool.true
+    cons: case cond(list.head){
+      true : List.all<_>(cond, list.tail)
+      false: Bool.false
+    }
+  }
+
+// Do any element satisfy a condition?
+List.any<A: Type>(cond: A -> Bool, list: List(A)): Bool
+  case list{
+    nil : Bool.false
+    cons: case cond(list.head){
+      true : Bool.true
+      false: List.any<_>(cond, list.tail)
+    }
+  }
+  
+// Are all elements true?
+List.and(list: List(Bool)): Bool
+  List.all<_>((x) x, list)
+
+//Finds the first occurrence that satisfies a condition
+List.find<A: Type>(cond: A -> Bool, xs: List(A)): Maybe(A)
+  case xs{
+  nil : Maybe.none<_>
+  cons: case cond(xs.head){
+    true : Maybe.some<_>(xs.head)
+    false: List.find<_>(cond, xs.tail)
+    }
+  }
+
+// insert separators between elements, i.e. `[A,B,C] ~> [A,sep,B,sep,C]`
+List.intersperse<A: Type>(sep: A, xs: List(A)): List(A)
+  case xs{
+    nil : List.nil<_>
+    cons: case xs.tail{
+      nil : List.pure<_>(xs.head)
+      cons: List.cons<_>(xs.head,List.cons<_>(sep,List.intersperse<A>(sep,xs.tail)))
+    }
+  }
+
+// insert separators between elements, i.e. `[A,B,C] ~> [A,sep,B,sep,C]`
+List.intercalate<A: Type>(sep: List(A), xs: List(List(A))): List(A)
+  List.flatten<A>(List.intersperse<List(A)>(sep,xs))
+
+// Shows a list as String
+List.show<A: Type>(f: A -> String, xs: List(A)): String
+  String.flatten(["[",String.intercalate(",", List.map<_,_>(f,xs)),"]"])
+
+// Removes all elements that do not satisfy a condition.
 List.filter<A: Type>(f: A -> Bool, xs: List(A)): List(A)
-   case xs{
-     nil : List.nil<_>
-     cons: case f(xs.head){
-     true : List.cons<_>(xs.head,List.filter<_>(f, xs.tail))
-     false: List.filter<_>(f, xs.tail)
-     }
-   }
+  case xs{
+    nil : List.nil<_>
+    cons: case f(xs.head){
+    true : List.cons<_>(xs.head,List.filter<_>(f, xs.tail))
+    false: List.filter<_>(f, xs.tail)
+    }
+  }
 
 // Converts a list to its non-inductive Church encoding.
 List.fold<A: Type>(list: List(A)): <P: Type> -> P -> (A -> P -> P) -> P
@@ -58,18 +172,21 @@ List.foldr<A: Type,B: Type>(b: B, f: A -> B -> B, xs: List(A)): B
   //| Empty.absurd<_>(ne);
   //| List.fold<_>(xs)<P>(nil,cons);
 
+// Folds over a list, left associative.
 List.for<A: Type>(xs: List(A))<B: Type>(b: B, f: A -> B -> B): B
   case xs {
     nil : b,
     cons: List.for<A>(xs.tail)<B>(f(xs.head,b),f)
   }
 
+// Applies a function to all elements of the list.
 List.map<A: Type, B: Type>(f: A -> B, as: List(A)): List(B)
   case as {
     nil: List.nil<_>,
     cons: List.cons<_>(f(as.head), List.map<_,_>(f,as.tail)),
   }
 
+// Reverse the order of the elements of the list.
 List.reverse<A: Type>(xs: List(A)) : List(A)
   List.reverse.go<_>(xs,List.nil<_>)
 
@@ -79,18 +196,21 @@ List.reverse.go<A: Type>(xs: List(A), res: List(A)): List(A)
     cons: List.reverse.go<_>(xs.tail,List.cons<_>(xs.head,res))
   }
 
+// Concatenates two lists.
 List.concat<A: Type>(as: List(A), bs: List(A)): List(A)
   case as {
     nil: bs,
     cons: List.cons<_>(as.head, List.concat<_>(as.tail,bs))
   }
 
+// Flattens a list of lists into a single list.
 List.flatten<A: Type>(xs: List(List(A))): List(A)
   case xs {
     nil: List.nil<_>,
     cons: List.concat<_>(xs.head, List.flatten<_>(xs.tail))
   }
 
+// Verify if a list is empty.
 List.is_empty<A: Type>(list: List(A)): Bool
   case list {
     nil: Bool.true,
@@ -108,7 +228,7 @@ List.length.go<A: Type>(xs: List(A), n: Nat): Nat
     cons: List.length.go<A>(xs.tail, Nat.succ(n))
   }
 
-// A range of nats
+// A range of nats.
 List.range.nat.go(nat: Nat, list: List(Nat)): List(Nat)
   case nat {
     zero: list,
@@ -118,6 +238,7 @@ List.range.nat.go(nat: Nat, list: List(Nat)): List(Nat)
 List.range.nat(nat: Nat): List(Nat)
   List.range.nat.go(nat, List.nil<_>)
 
+// Compares the equality of two lists.
 List.eql<A: Type>(eql: A -> A -> Bool, a: List(A), b: List(A)): Bool
   case a {
     nil: case b {
@@ -140,12 +261,14 @@ List.drop<A: Type>(n: Nat, xs: List(A)):  List(A)
     }
   }
 
+// Apply a function f to transform a List(A) into a List(B).
 List.mapped<A: Type>(as: List(A))<B: Type>(f: A -> B): List(B)
   case as {
     nil: List.nil<_>,
     cons: List.cons<_>(f(as.head),List.mapped<A>(as.tail)<B>(f))
   }
 
+// Returns the element at given position.
 List.at<A: Type>(index: Nat, list: List(A)): Maybe(A)
   case list {
     nil: Maybe.none<_>,
@@ -155,6 +278,7 @@ List.at<A: Type>(index: Nat, list: List(A)): Maybe(A)
     }
   }
 
+// Returns the element at given position, backwards.
 List.at_last<A: Type>(index: Nat, list: List(A)): Maybe(A)
   List.at<A>(index, List.reverse<_>(list))
 

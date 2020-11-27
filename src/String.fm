@@ -92,6 +92,10 @@ String.append(as: String, a: Char): String
     nil : String.pure(a)
     cons: String.cons(as.head,String.append(as.tail, a))
   }
+  
+// A string with only one character.
+String.pure(x : Char) : String
+  String.cons(x, String.nil)
 
 // Check if "xs" starts with "match"
 String.starts_with(xs: String, match: String): Bool
@@ -253,6 +257,20 @@ String.split(xs: String, match: String): List(String)
 //     nil : Bits.nil
 //     cons: Bits.concat(U16.to_bits(str.head))(String.to_bits(str.tail))
 //   }
+
+// insert separators between characters, i.e. `[A,B,C] ~> [A,sep,B,sep,C]`
+String.intercalate(sep: String, xs: List(String)): String
+  String.flatten(List.intersperse<_>(sep,xs))
+
+// insert separators between characters, i.e. `[A,B,C] ~> [A,sep,B,sep,C]`
+String.intersperse(sep: Char, xs: String): String
+  case xs{
+  nil : String.nil
+  cons: case xs.tail{
+    nil : String.pure(xs.head)
+    cons: String.cons(xs.head,String.cons(sep,String.intersperse(sep,xs.tail)))
+    }
+  }
 
 // Converts a String to Bits
 String.to_bits(str: String): Bits
