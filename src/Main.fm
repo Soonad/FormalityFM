@@ -7,9 +7,17 @@
     //new: ?a
   //}!
 
-main.and(b: Bool): Bool.not(Bool.not(b)) == b
-  case b {
-    true  : Equal.refl<_, _>
-    false : Equal.refl<_, _>
-  }!
+// refl  ~> Equal.refl<_,_>
+// some  ~> Maybe.some<_>
+// none  ~> Maybe.none<_>
+// 1 & 2 ~> List.nil<_>
 
+//main.and(b: Bool): Bool.not(Bool.not(b)) == b
+  //case b {
+    //true  : Equal.refl<_, _>
+    //false : Equal.refl<_, _>
+  //}!
+
+
+//Main: Bool
+  //Bool.foo

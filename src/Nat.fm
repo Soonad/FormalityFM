@@ -48,7 +48,7 @@ Nat.to_string_base(base: Nat, nat: Nat): String
 
 Nat.to_bits(n: Nat): Bits
   case n {
-    zero: Bits.nil,
+    zero: Bits.e,
     succ: Bits.inc(Nat.to_bits(n.pred))
   }
 
