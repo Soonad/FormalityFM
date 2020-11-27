@@ -283,6 +283,10 @@ Word.pow<size: Nat>(a: Word(size), b: Word(size)): Word(size)
 Word.xor<size: Nat>(a: Word(size), b: Word(size)): Word(size)
   Word.xor<size>(a, b)
 
+// Converts a Word to a Nat
+// Word.to_nat<size: Nat>(word: Word(size)): Nat
+//   Word.fold<()Nat,size>(0, <_> Nat.mul(2), <_> (x) Nat.succ(Nat.mul(2, x)), word)
+
 // TODO Bitwise-shifts a word left
 Word.shift_left: <size: Nat> -> Nat -> Word(size) -> Word(size)
   Word.shift_left
