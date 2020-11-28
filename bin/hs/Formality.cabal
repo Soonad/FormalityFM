@@ -21,12 +21,13 @@ executable fmhs
   main-is:             Main.hs
   build-depends:       base >=3 && <5
   default-language:    Haskell2010
+  other-modules:       FormalityInternal
 
 Library
   hs-source-dirs:      src
-  Build-Depends:       base >=3 && <5
-  Exposed-modules:     Formality
-  Other-modules:       FormalityInternal
+  build-Depends:       base >=3 && <5
+  exposed-modules:     Formality
+  other-modules:       FormalityInternal
   ghc-options:         -Wall
 
 source-repository head

@@ -6,10 +6,9 @@ Formality compiled to Haskell and exposed as a Haskell project.
 Installing
 ----------
 
-You will need to have [`>= cabal@3.2.0.0`](https://formulae.brew.sh/formula/cabal-install)
-
+You will need to have `>= cabal@3.2.0.0`.
 ```
-cd src
+cd FormalityFM/bin/hs
 cabal install
 cabal run
 ```
@@ -17,7 +16,7 @@ cabal run
 Using
 -----
 
-You can download the Formality library from [here](https://github.com/moonad/FormalityFM/tree/master/src) and inside its folder run:
+Inside `FormalityFM/src` you can run:
 
 ```
 fmhs         # show all commands available
