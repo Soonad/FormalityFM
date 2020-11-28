@@ -4,8 +4,8 @@ var path = require("path");
 var {fmc_to_js, fmc_to_hs, fmc} = require("formcore-lang"); // FormCore, which has the JS compiler
 //var {fmc_to_js, fmc} = require("./../../FormCoreJS"); // FormCore, which has the JS compiler
 
-var fmjs_path = path.join(__dirname, "js/formality.js");
-var fmhs_path = path.join(__dirname, "hs/FormalityInternal.hs");
+var fmjs_path = path.join(__dirname, "js/src/formality.js");
+var fmhs_path = path.join(__dirname, "hs/src/FormalityInternal.hs");
 process.chdir(path.join(__dirname, "../src"));
 
 // Restores last formality.js from git in case we destroyed it 

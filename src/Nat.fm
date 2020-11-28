@@ -135,6 +135,12 @@ Nat.lte(n: Nat, m: Nat): Bool
 Nat.ltn(n: Nat, m: Nat): Bool
   Cmp.as_ltn(Nat.cmp(n, m))
 
+Nat.is_even(n: Nat): Bool
+  case n {
+    zero: true
+    succ: Bool.not(Nat.is_even(n.pred))
+  }
+
 Nat.show(n: Nat): String
   Nat.to_string_base(10,n)
 
