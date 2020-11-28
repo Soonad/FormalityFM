@@ -65,3 +65,11 @@ type Main.IsEven.B ~ (n: Nat) {
 // Proof that 2 is even
 Main.two_is_even.B: Main.IsEven.B(2)
   Main.IsEven.B.succ(_, Main.IsEven.B.zero)
+
+// Example usage of open and let
+Main.open_and_let: Pair(Nat, String)
+  let a = {5, "foo"}
+  let b = {7, "bar"}
+  open a
+  let {b_fst, b_snd} = b
+  {Nat.add(a.fst, b_fst), a.snd | b_snd}
