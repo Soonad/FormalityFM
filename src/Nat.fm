@@ -137,7 +137,7 @@ Nat.ltn(n: Nat, m: Nat): Bool
 
 Nat.is_even(n: Nat): Bool
   case n {
-    zero: true
+    zero: Bool.true
     succ: Bool.not(Nat.is_even(n.pred))
   }
 
@@ -151,8 +151,9 @@ Nat.show_digit(base: Nat, n: Nat) : Char
     ,'G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V'
     ,'W','X','Y','Z','a','b','c','d','e','f','g','h','i','j','k','l'
     ,'m','n','o','p','q','r','s','t','u','v','w','x','y','z','+','/'];
-  if Bool.and(Nat.gtn(base,0),Nat.lte(base,64)) then 
-    case List.at<_>(m,base64) as c {
+  if Bool.and(Nat.gtn(base,0),Nat.lte(base,64)) then
+    let c = List.at<_>(m,base64)
+    case c {
       none: '#',
       some: c.value,
     }

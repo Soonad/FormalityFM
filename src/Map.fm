@@ -189,7 +189,7 @@ Map.merge<A: Type,B: Type,C: Type>(
   a: Map(A),
   b: Map(B)
 ) : Map(C)
-  Map.merge.go<_,_,_>(a_not_b,b_not_a,a_and_b,Bits.nil,a,b)
+  Map.merge.go<_,_,_>(a_not_b,b_not_a,a_and_b,Bits.e,a,b)
 
 Map.merge.go<A: Type,B: Type,C: Type>(
   f: Bits -> A -> Maybe(C),
@@ -208,8 +208,8 @@ Map.merge.go<A: Type,B: Type,C: Type>(
           some: g(key,bv.value)
         }
         Map.tie<_>(val,
-          Map.merge.go<_,_,_>(f, g, h, Bits.0(key), Map.new<_>,b.lft),
-          Map.merge.go<_,_,_>(f, g, h, Bits.1(key), Map.new<_>,b.rgt))
+          Map.merge.go<_,_,_>(f, g, h, Bits.o(key), Map.new<_>,b.lft),
+          Map.merge.go<_,_,_>(f, g, h, Bits.i(key), Map.new<_>,b.rgt))
     },
     tie: case b {
       new: 
@@ -218,8 +218,8 @@ Map.merge.go<A: Type,B: Type,C: Type>(
           some: f(key, av.value) 
         }
         Map.tie<_>(val,
-          Map.merge.go<_,_,_>(f,g,h,Bits.0(key),a.lft,Map.new<_>),
-          Map.merge.go<_,_,_>(f,g,h,Bits.1(key),a.rgt,Map.new<_>)),
+          Map.merge.go<_,_,_>(f,g,h,Bits.o(key),a.lft,Map.new<_>),
+          Map.merge.go<_,_,_>(f,g,h,Bits.i(key),a.rgt,Map.new<_>)),
       tie: 
         let val = case a.val as av {
           none: case b.val as bv {
@@ -232,8 +232,8 @@ Map.merge.go<A: Type,B: Type,C: Type>(
           }
         }
         Map.tie<_>(val,
-          Map.merge.go<_,_,_>(f, g, h, Bits.0(key), a.lft, b.lft),
-          Map.merge.go<_,_,_>(f, g, h, Bits.1(key), a.rgt, b.rgt))
+          Map.merge.go<_,_,_>(f, g, h, Bits.o(key), a.lft, b.lft),
+          Map.merge.go<_,_,_>(f, g, h, Bits.i(key), a.rgt, b.rgt))
     }
   }
 

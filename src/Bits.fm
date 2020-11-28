@@ -116,10 +116,10 @@ Bits.to_nat(b: Bits): Nat
 
 Bits.from_string(str: String): Bits
   case str{
-    nil: Bits.nil
+    nil: Bits.e
     cons: case U16.eql(str.head, Char.parse("1")){
-      true : Bits.1(Bits.from_string(str.tail))
-      false: Bits.0(Bits.from_string(str.tail))
+      true : Bits.i(Bits.from_string(str.tail))
+      false: Bits.o(Bits.from_string(str.tail))
       // TODO: what is this from past code? 
       //| Unit.new
     }
@@ -130,27 +130,27 @@ Bits.length(xs: Bits): Nat
 
 Bits.length.go(xs: Bits, n: Nat): Nat
   case xs {
-    nil: n,
-     0 : Bits.length.go(xs.pred, Nat.succ(n)),
-     1 : Bits.length.go(xs.pred, Nat.succ(n))
+    e: n,
+    o : Bits.length.go(xs.pred, Nat.succ(n)),
+    i : Bits.length.go(xs.pred, Nat.succ(n))
   }
 
 Bits.slice(len: Nat, bits: Bits): Bits
   case len {
-    zero: Bits.nil,
+    zero: Bits.e,
     succ: case bits {
-      nil: Bits.nil,
-       0 : Bits.0(Bits.slice(len.pred, bits.pred)),
-       1 : Bits.1(Bits.slice(len.pred, bits.pred))
+      e: Bits.e,
+      o : Bits.o(Bits.slice(len.pred, bits.pred)),
+      i : Bits.i(Bits.slice(len.pred, bits.pred))
     }
   }
 
 // Converts a bitstring to a string
 Bits.to_string(bits: Bits): String
   case bits {
-    nil: "",
-     0 : String.concat("0", Bits.to_string(bits.pred)),
-     1 : String.concat("1", Bits.to_string(bits.pred))
+    e: "",
+    o : String.concat("0", Bits.to_string(bits.pred)),
+    i : String.concat("1", Bits.to_string(bits.pred))
   }
 
 // Converts a bitstring to a U32 value
@@ -159,13 +159,13 @@ Bits.to_u32(bits: Bits): U32
 
 // Multiplies two bitstrings.
 Bits.mul(a: Bits, b: Bits): Bits
-  Bits.mul.go(a, b, Bits.nil)
+  Bits.mul.go(a, b, Bits.e)
 
 Bits.mul.go(a: Bits, b: Bits, bits: Bits): Bits
   case b {
-    nil: bits,
-     0 : Bits.mul.go(Bits.0(a), b.pred, bits),
-     1 : Bits.mul.go(Bits.0(a), b.pred, Bits.add(a, bits))
+    e: bits,
+    o : Bits.mul.go(Bits.o(a), b.pred, bits),
+    i : Bits.mul.go(Bits.o(a), b.pred, Bits.add(a, bits))
   }
 
 // TODO Divides two bitstrings.

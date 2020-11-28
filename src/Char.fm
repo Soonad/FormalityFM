@@ -53,10 +53,10 @@ Char.hex_value32(chr: Char): U32
 
 Char.newline: Char
   Char.new(
-    Bit.0, Bit.0, Bit.0, Bit.0,
-    Bit.0, Bit.0, Bit.0, Bit.0,
-    Bit.0, Bit.0, Bit.0, Bit.0,
-    Bit.1, Bit.0, Bit.1, Bit.0)
+    Bit.o, Bit.o, Bit.o, Bit.o,
+    Bit.o, Bit.o, Bit.o, Bit.o,
+    Bit.o, Bit.o, Bit.o, Bit.o,
+    Bit.i, Bit.o, Bit.i, Bit.o)
 
 // Parses a character. Example: `Char.parse("x")`
 Char.parse(str: String): Char.parse.type(str)
@@ -86,8 +86,8 @@ Char.parse.type(str: String): Type
 
 Char.newline: Char
   Char.new(
-    Bit.0, Bit.0, Bit.0, Bit.0,
-    Bit.0, Bit.0, Bit.0, Bit.0,
-    Bit.0, Bit.0, Bit.0, Bit.0,
-    Bit.1, Bit.0, Bit.1, Bit.0)
+    Bit.o, Bit.o, Bit.o, Bit.o,
+    Bit.o, Bit.o, Bit.o, Bit.o,
+    Bit.o, Bit.o, Bit.o, Bit.o,
+    Bit.i, Bit.o, Bit.i, Bit.o)
    

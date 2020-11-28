@@ -268,7 +268,7 @@ String.split_at(n : Nat, xs: String) : Pair(String,String)
 
 // String.to_bits(str: String): Bits
 //   case str{
-//     nil : Bits.nil
+//     nil : Bits.e
 //     cons: Bits.concat(U16.to_bits(str.head))(String.to_bits(str.tail))
 //   }
 
@@ -289,10 +289,10 @@ String.intersperse(sep: Char, xs: String): String
 // Converts a String to Bits
 String.to_bits(str: String): Bits
   case str {
-    nil : Bits.nil,
+    nil : Bits.e,
     cons: case U16.eql(str.head, '1') {
-      true : Bits.1(String.to_bits(str.tail)),
-      false: Bits.0(String.to_bits(str.tail)),
+      true : Bits.i(String.to_bits(str.tail)),
+      false: Bits.o(String.to_bits(str.tail)),
     }
   }
 
@@ -409,7 +409,7 @@ String.span(f: Char -> Bool, xs: String): Pair(String,String)
 
 String.to_bits(str: String): Bits
   case str{
-    nil : Bits.nil
+    nil : Bits.e
     cons: Bits.concat(U16.to_bits(str.head), String.to_bits(str.tail))
   }
 
