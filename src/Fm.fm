@@ -2581,6 +2581,7 @@ Fm.Parser.annotation(init: Nat, term: Fm.Term): Parser(Fm.Term)
 // Parses a core term (prefix phase)
 Fm.Parser.term: Parser(Fm.Term)
   do Parser {
+    var code = Parser.get_code;
     var init = Fm.Parser.init;
     var term = Parser.first_of<_>([
       Fm.Parser.type,
@@ -2681,7 +2682,7 @@ Fm.Parser.datatype: Parser(Fm.Datatype)
 // Parses a definition
 Fm.Parser.file.def(file: String, code: String, defs: Fm.Defs): Parser(Fm.Defs)
   do Parser {
-    var name = Fm.Parser.name;
+    var name = Fm.Parser.name1;
     var args = Parser.many<_>(Fm.Parser.binder);
     let args = List.flatten<_>(args);
     Fm.Parser.text(":");
@@ -2846,274 +2847,6 @@ Fm.Defs.read(file: String, code: String, defs: Fm.Defs): Either(String, Fm.Defs)
       Either.right<_,_>(parsed.val),
   }
 
-// Compilers
-// =========
-
-Fm.Comp.data.ctr_args(type: Fm.Term, defs: Fm.Defs): Nat
-  case Fm.Term.reduce(type, defs) as type {
-    all: Nat.succ(Fm.Comp.data.ctr_args(type.body(Fm.Term.typ, Fm.Term.typ), defs)),
-    _: Nat.zero,
-  }
-
-Fm.Comp.data.ctrs(type: Fm.Term, defs: Fm.Defs): List(Nat)
-  case Fm.Term.reduce(type, defs) as type {
-    all: List.cons<_>(
-      Fm.Comp.data.ctr_args(type.xtyp, defs),
-      Fm.Comp.data.ctrs(type.body(Fm.Term.typ, Fm.Term.typ), defs)),
-    _: List.nil<_>,
-  }
-
-Fm.Comp.prim_of(type: Fm.Term, defs: Fm.Defs): Maybe(Fm.Prim)
-  case Fm.Term.reduce(type, defs) as type {
-    all: List.fold<_>(Fm.Comp.prims)<Maybe(Fm.Prim)>(
-      case type.self {
-        nil: Maybe.none<_>,
-        cons: Maybe.some<_>(Fm.Prim.data(Fm.Comp.data.ctrs(type.body(Fm.Term.typ, Fm.Term.typ),defs))),
-      },
-      (name_prim, cont) case name_prim {
-        new: if String.eql(name_prim.fst, type.self)
-          then Maybe.some<_>(name_prim.snd)
-          else cont
-        })
-    _: Maybe.none<_>,
-  }
-
-// Compiles a term to js
-Fm.Comp.compile(
-  term: Fm.Term,
-  type: Maybe(Fm.Term),
-  defs: Fm.Defs,
-  ctx: Fm.Context,
-): Maybe(Fm.Comp)
-  //use skip = Debug.log<_>(String.flatten([
-    //"Compile: ",
-    //"- ", Fm.Term.show(term), "\n",
-    //"- ", Fm.Term.show(Maybe.default<_>(Fm.Term.ref("_"), type)), "\n",
-  //]))
-  case term {
-    ref: do Maybe {
-      return Fm.Comp.ref(term.name);
-    },
-    var: do Maybe {
-      return Fm.Comp.var(term.name);
-    },
-    typ: do Maybe {
-      return Fm.Comp.nil;
-    },
-    all: do Maybe {
-      return Fm.Comp.nil;
-    },
-    lam: case type {
-      none:
-        Maybe.none<_>,
-      some: 
-        let typv = Fm.Term.reduce(type.value, defs);
-        case typv {
-          all: do Maybe {
-            let ctx_size = List.length<_>(ctx);
-            let self_var = term;
-            let body_var = Fm.Term.var(term.name, ctx_size);
-            let body_typ = typv.body(self_var, body_var);
-            let body_ctx = List.cons<_>({term.name,typv.xtyp}, ctx);
-            var body_cmp = Fm.Comp.compile(term.body(body_var), Maybe.some<_>(body_typ), defs, body_ctx);
-            let term_cmp = if typv.eras then body_cmp else Fm.Comp.lam(term.name, body_cmp);
-            let term_cmp = case Fm.Comp.prim_of(type.value, defs) as prim {
-              none: term_cmp,
-              some: Fm.Comp.ins(prim.value, term_cmp),
-            };
-            return term_cmp;
-          },
-          _: Maybe.none<_>,
-        }
-      },
-    app: 
-      do Maybe {
-        var func_typ = Fm.Check.value<_>(Fm.Term.check(term.func, Maybe.none<_>, defs, ctx, Maybe.none<_>, Maybe.none<_>));
-        let func_typ = Fm.Term.reduce(func_typ, defs);
-        case func_typ {
-          all: do Maybe {
-            var func_cmp = Fm.Comp.compile(term.func, Maybe.none<_>, defs, ctx);
-            let func_cmp = case Fm.Comp.prim_of(func_typ, defs) as prim {
-              none: func_cmp,
-              some: Fm.Comp.eli(prim.value, func_cmp),
-            };
-            if func_typ.eras then do Maybe {
-              return func_cmp;
-            } else do Maybe {
-              var argm_cmp = Fm.Comp.compile(term.argm, Maybe.some<_>(func_typ.xtyp), defs, ctx);
-              return Fm.Comp.app(func_cmp, argm_cmp);
-            };
-          },
-          _: Maybe.none<_>,
-        };
-      },
-    ann:
-      Fm.Comp.compile(term.term, Maybe.some<_>(term.type), defs, ctx)
-    let:
-      let ctx_size = List.length<_>(ctx);
-      do Maybe {
-        var expr_typ = Fm.Check.value<_>(Fm.Term.check(term.expr, Maybe.none<_>, defs, ctx, Maybe.none<_>, Maybe.none<_>));
-        var expr_cmp = Fm.Comp.compile(term.expr, Maybe.none<_>, defs, ctx);
-        let new_name = String.flatten([term.name, "_", Nat.show(ctx_size)]);
-        let body_var = Fm.Term.var(new_name, ctx_size);
-        let body_val = term.body(body_var);
-        let body_ctx = List.cons<_>({term.name, expr_typ}, ctx);
-        var body_cmp = Fm.Comp.compile(body_val, type, defs, body_ctx);
-        return Fm.Comp.let(new_name, expr_cmp, body_cmp);
-      },
-    def:
-      Fm.Comp.compile(term.body(term.expr), type, defs, ctx),
-    nat: do Maybe {
-      return Fm.Comp.nat(term.natx);
-    },
-    chr: do Maybe {
-      return Fm.Comp.chr(term.chrx);
-    },
-    str: do Maybe {
-      return Fm.Comp.str(term.strx);
-    },
-    cse:
-      Maybe.none<_>,
-    gol: do Maybe {
-      return Fm.Comp.nil;
-    },
-    hol: do Maybe {
-      return Fm.Comp.nil;
-    },
-    ori: do Maybe {
-      Fm.Comp.compile(term.expr, type, defs, ctx);
-    }
-  }
-
-Fm.Comp.hs.name(name: Fm.Name): String
-  case name {
-    nil: "",
-    cons:
-      let chr =
-        if U16.btw('A', name.head, 'Z') then
-          U16.add(name.head, Nat.to_u16(32))
-        else if U16.eql(name.head, '.') then
-          '_'
-        else
-          name.head
-      String.cons(chr, Fm.Comp.hs.name(name.tail)),
-  }
-
-// Compile a term to Haskell
-Fm.Comp.hs(comp: Fm.Comp): String
-  case comp {
-    nil: "()",
-    var: String.flatten(["_",Fm.Comp.hs.name(comp.name)]),
-    ref: String.flatten(["_",Fm.Comp.hs.name(comp.name)]),
-    lam: String.flatten(["(\\_", Fm.Comp.hs.name(comp.name), "-> ", Fm.Comp.hs(comp.body), ")"]),
-    app: String.flatten(["(app " ,Fm.Comp.hs(comp.func), " ", Fm.Comp.hs(comp.argm), ")"]),
-    let: String.flatten(["(let _",Fm.Comp.hs.name(comp.name)," = ",Fm.Comp.hs(comp.expr)," in ",Fm.Comp.hs(comp.body),")"]),
-    eli: String.flatten(["(_eli_",Fm.Prim.name(comp.prim)," ",Fm.Comp.hs(comp.expr),")"]),
-    ins: String.flatten(["(_ins_",Fm.Prim.name(comp.prim)," ",Fm.Comp.hs(comp.expr),")"]),
-    nat: String.flatten(["(",Nat.show(comp.natx),"::Integer)"]),
-    chr: String.flatten(["(",Nat.show(Bits.to_nat(Word.to_bits<_>(U16.to_word(comp.chrx)))),"::Word16)"]),
-    str: String.flatten([String.cons('"',String.nil), Fm.escape(comp.strx), String.cons('"',String.nil)]),
-  }
-
-Fm.Comp.prims: List(Pair(String, Fm.Prim))
-  [
-    {"Bool.Self", Fm.Prim.bool},
-    {"Nat.Self", Fm.Prim.nat},
-    {"U16.Self", Fm.Prim.u16},
-    {"String.Self", Fm.Prim.string},
-  ]
-  //{"Bits.Self", Fm.Prim.bits},
-
-Fm.Comp.hs.native_ops: Map(String)
-  let pairs = [
-    {"Nat.add"    , "_nat_add = \\n m-> (n::Integer) + (m::Integer)"},
-    {"Nat.sub"    , "_nat_sub = \\n m-> max ((n::Integer) - (m::Integer)) 0"},
-    {"Nat.mul"    , "_nat_mul = \\n m-> (n::Integer) * (m::Integer)"},
-    {"Nat.div"    , "_nat_div = \\n m-> div (n::Integer) (m::Integer)"},
-    {"Nat.div_mod", "_nat_div_mod = \\n m t-> t (div (n::Integer) (m::Integer)) (mod n m)"},
-    {"Nat.pow"    , "_nat_pow = \\n m-> (n::Integer) ^ (m::Integer)"},
-    {"Nat.ltn"    , "_nat_ltn = \\n m-> (n::Integer) < (m::Integer)"},
-    {"Nat.lte"    , "_nat_lte = \\n m-> (n::Integer) <= (m::Integer)"},
-    {"Nat.eql"    , "_nat_eql = \\n m-> (n::Integer) == (m::Integer)"},
-    {"Nat.gte"    , "_nat_gte = \\n m-> (n::Integer) >= (m::Integer)"},
-    {"Nat.gtn"    , "_nat_gtn = \\n m-> (n::Integer) > (m::Integer)"},
-    {"Nat.to_u16" , "_nat_to_u16 = \\n-> (fromInteger (n::Integer)) :: Word16"},
-    {"U16.add"    , "_u16_add = \\n m-> (n::Word16) + (m::Word16)"},
-    {"U16.sub"    , "_u16_sub = \\n m-> (n::Word16) - (m::Word16)"},
-    {"U16.mul"    , "_u16_add = \\n m-> (n::Word16) + (m::Word16)"},
-    {"U16.div"    , "_u16_div = \\n m-> div (n::Word16) (m::Word16)"},
-    {"U16.mod"    , "_u16_mod = \\n m-> mod (n::Word16) (m::Word16)"},
-    {"U16.pow"    , "_u16_pow = \\n m-> (n::Word16) ^ (m::Word16)"},
-    {"U16.ltn"    , "_u16_ltn = \\n m-> (n::Word16) < (m::Word16)"},
-    {"U16.lte"    , "_u16_lte = \\n m-> (n::Word16) <= (m::Word16)"},
-    {"U16.eql"    , "_u16_eql = \\n m-> (n::Word16) == (m::Word16)"},
-    {"U16.gte"    , "_u16_gte = \\n m-> (n::Word16) >= (m::Word16)"},
-    {"U16.gtn"    , "_u16_gtn = \\n m-> (n::Word16) > (m::Word16)"},
-  ];
-  //{"Bits.concat", "_bits_concat = \\a b-> let len = integerLog2# a in orInteger (shiftLInteger b len) (a - bitInteger len)"},
-  //{"Bits.eql"   , "_bits_eql = \\a b t f-> if a == b then t else f"},
-  let map = Map.new<_>;
-  for pair in pairs with map:
-    case pair {
-      new: Fm.set<_>(pair.fst, pair.snd, map)
-    }
-
-Fm.Prim.name(prim: Fm.Prim): String
-  case prim {
-    bool: "bool",
-    nat: "nat",
-    u16: "u16",
-    string: "string",
-    data: "data",
-  }
-
-Fm.Prim.ctrs(prim: Fm.Prim): List(Nat)
-  case prim {
-    bool: [0, 0],
-    nat: [0, 2],
-    u16: [1],
-    string: [0, 2],
-    data: prim.ctrs,
-  }
-
-// Compile defs to Haskell
-Fm.Comp.hs.defs(defs: Fm.Defs): String
-  //"{-# LANGUAGE MagicHash #-}",
-  //"import GHC.Integer.Logarithms",
-  //"import GHC.Integer",
-  //"_ins_bits = \\x-> x (1::Integer) (\\p-> shiftLInteger p 1#) (\\p-> orInteger 1 (shiftLInteger p 1#))",
-  //"_eli_bits = \\x-> \\e o i-> if x == 1 then e else if testBitInteger x 0# then i (shiftRInteger x 1#) else o (shiftRInteger x 1#)",
-  let list = Map.values<_>(defs);
-  let code = String.join("\n", [
-    "import Unsafe.Coerce",
-    "import Data.Word",
-    "import Data.Bits",
-    "app = unsafeCoerce",
-    "_ins_bool = \\x-> x True False",
-    "_eli_bool = \\x-> case x of { True -> (\\t-> \\f-> t); False -> (\\t-> \\f-> f); }",
-    "_ins_nat = \\x-> (x 0 (\\p-> 1 + p)) :: Integer",
-    "_eli_nat = \\x-> \\z-> \\s-> if x == 0 then z else (app s (x - 1))",
-    "_ins_string = \\x-> x [] (\\h t-> (toEnum (fromIntegral h) :: Char) : t)",
-    "_eli_string = \\x-> case x::String of { []-> \\n e-> n; (c:cs)-> \\n e-> e(fromIntegral(fromEnum c) :: Word16)cs }",
-    "_ins_u16 = \\x-> x (\\x -> (go 0 0 x)::Word16) where go i u x = if i<16 then x u (\\x-> app go (i + 1) u x) (\\x-> app go (i+1) (u.|.(shiftL 1 i)) x) else u",
-    "_eli_u16 = \\x-> (\\t -> t (go 0 (\\n o i-> n) (x::Word16))) where go i w x = if i<16 then go (i+1) (if (shiftR x (16-i-1).&.1)>0 then \\n o i-> app i w else \\n o i-> app o w) x else w",
-    "",
-  ]);
-  for defn in list with code:
-    case defn {
-      new: 
-        let name = defn.name;
-        let line = case Fm.get<_>(name, Fm.Comp.hs.native_ops) as got {
-          none: 
-            let comp = Fm.Comp.compile(defn.term, Maybe.some<_>(defn.type), defs, []);
-            let body = case comp {none: "()", some: Fm.Comp.hs(comp.value)};
-            String.flatten(["_",Fm.Comp.hs.name(name)," = ",body]),
-          some:
-            got.value,
-        };
-        String.flatten([code, line, "\n"])
-    }
-
 // FormCore
 // ========
 
@@ -3249,7 +2982,6 @@ Fm.Synth.file_of(name: Fm.Name): String
   }
 
 Fm.Synth.load(name: Fm.Name, defs: Fm.Defs): IO(Maybe(Fm.Defs))
-  //let skip = Debug.log<_>(String.flatten(["Loading: ", name, "..."]), (x) Unit.new);
   do IO {
     let file = Fm.Synth.file_of(name);
     //let skip = Debug.log<_>(String.flatten(["loading file: ", file, " (", name, ")"]), (x) Unit.new);
@@ -3521,11 +3253,34 @@ Fm.checker.io.file(file: String): IO(Unit)
     };
   }
 
+// Receives a Formality code and returns the type checker reports. Since synth
+// is IO, we need to "purify" it in order to implement a `String->String`
+// function. Since IO is a pure datatype, we can do it by just answering all
+// calls with an empty string. This will work as long as Synth doesn't request
+// external files, which is the case when the source code has no dependencies.
+Fm.checker.code(code: String): String
+  case Fm.Defs.read("Main.fm", code, Map.new<_>) as read {
+    left:
+      read.value,
+    right: IO.purify<String>(do IO {
+      let defs = read.value;
+      let nams = List.mapped<_>(Map.keys<_>(defs))<_>(Fm.Name.from_bits);
+      var defs = Fm.Synth.many(nams, defs);
+      return Fm.Defs.report(defs, nams);
+    }),
+  }
+
+//Fm: IO(Unit)
+  //do IO {
+    //IO.print(Fm.checker.code("type Bit { o, i } main: Bit ?a"));
+  //}
+
 Fm: IO(Unit)
   do IO {
     let _ = Fm.to_core.io.one;
     let _ = Fm.checker.io.one;
     let _ = Fm.checker.io.file;
+    let _ = Fm.checker.code;
     let _ = Fm.Term.read;
     Fm.checker.io.file("Main.fm");
   }

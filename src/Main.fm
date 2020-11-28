@@ -1,3 +1,6 @@
+// map <leader>m :w!<CR>:!clear; rm tmp.hs; fmfm Main.main --hs >> tmp.hs<CR>
+// map <leader>f :w!<CR>:!clear; rm tmp.hs; fmfm Fm --hs >> tmp.hs<CR>
+
 Main.add(n: Nat, m: Nat): Nat
   case n {
     zero: m,
@@ -10,10 +13,41 @@ Main.ones(n: Nat, r: List(Nat)): List(Nat)
     succ: Main.ones(n.pred, List.cons<_>(1,r)),
   }
 
-Main: _
-  let sum = 0;
-  let sum = for i in Main.ones(4000,[]):
-    Main.add(sum, i);
-  let sum = for i in Main.ones(4000,[]):
-    Main.add(sum, i);
-  sum
+Main.sum(r: List(Nat)): Nat
+  case r {
+    nil: 0,
+    cons: Main.add(r.head, Main.sum(r.tail)),
+  }
+
+type Main.Tri {
+  A,
+  B,
+  C,
+}
+
+type Main.Foo {
+  f0(x: Bool, y: Bool),
+  f1(x: Nat),
+  f2(x: Bool, y: Main.Tri, z: Nat),
+}
+
+Main.main: String
+  String.reverse("abcdef")
+  //do IO {
+    //IO.print("Escolha um arquivo:");
+    //var name = IO.get_line;
+    //var file = IO.get_file(name);
+    //IO.print(file);
+    //Main.main;
+  //}
+  //String.reverse(String.concat("foo", "bar"))
+  //let foo = Main.Foo.f2(Bool.true, Main.Tri.B, Main.add(3,3));
+  //case foo {
+    //f0: 1,
+    //f1: 2,
+    //f2: case foo.y {
+      //A: 3,
+      //B: Main.add(3,3),
+      //C: 5,
+    //}
+  //}

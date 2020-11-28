@@ -1,13 +1,13 @@
 {
   "name": "formality-js",
-  "version": "0.2.19",
+  "version": "0.2.20",
   "description": "Formality Language in JavaScript",
-  "main": "main.js",
+  "main": "src/formality.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": {
-    "fmfm": "main.js"
+    "fmjs": "src/main.js"
   },
   "repository": {
     "type": "git",
@@ -20,6 +20,6 @@
   },
   "homepage": "https://github.com/moonad/formality#readme",
   "dependencies": {
-    "formcore-lang": "0.1.10"
+    "formcore-lang": "^0.1.13"
   }
 }
