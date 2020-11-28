@@ -172,3 +172,8 @@ U16.or(a: U16, b: U16): U16
 // U16.parse_hex(str: String): U16
 //   U16.new(Word.from_bits(16, Bits.parse_hex(str)))
 
+U16.to_bits(a: U16): Bits
+  case a {
+    new: Word.to_bits<16>(a.value)
+  }
+

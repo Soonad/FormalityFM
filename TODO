@@ -1,31 +1,15 @@
-Ajustes
-- tirar a necessidade do IO no do
-- deixar o case-of mais inteligente pra provas
-- tirar a necessidade do ; no do
-- adicionar let {x,y} = ... que seria o get antigo
-- adicionar open x
-- lambdas com anotações `(b:A) x`
-- melhor sintaxe pro `log`
-
-
-
-
-
-
-
-
-TODO
-- JS Compiler
-- Make case-of smarter
-- Make "case as" create a let for the "as" value
-- Do-notation not need the type name
-- Check a whole file with `fmfm file.fm`
-- Implicit arguments
-- Show only first type error + hole errors, to avoid overwhelming user
-- More string escape sequences
-
-DONE
-- Source location on errors
-- Parser errors (add index and error to parser state, combine errors by max len)
-  - Parser.many_until: igual o many, porém com um delimitador, o que permite
-    melhores mensagnes de erro
+- DONE syntax for Debug.log: `log("a", "b")`
+- DONE smart motives for case-of
+- DONE remove the need for ; in many places
+- DONE add `let {x,y} = ...` syntax for pair destruction
+- DONE add `open x` for destruction
+- DONE improve JS compiler
+- DONE check a whole file with `fmfm file.fm`
+- DONE show only first type error + hole errors, to avoid overwhelming user
+- DONE show location on parse and type errors
+- remove need for name on the do-notation
+- lambdas with annotations `(b:A) x`
+- done create HS compiler
+- let case-of create a let for its "as" value
+- implicit arguments
+- more string escape sequences

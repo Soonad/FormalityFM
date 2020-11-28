@@ -16,15 +16,15 @@ Map.fold<A: Type>(map: Map(A)): <P: Type> -> P -> (Maybe(A) -> P -> P -> P) -> P
 
 Map.get<A: Type>(bits: Bits, map: Map(A)): Maybe(A)
   case bits {
-    nil: case map {
+    e: case map {
       new: Maybe.none<_>,
       tie: map.val,
     }, 
-    0: case map {
+    o: case map {
       new: Maybe.none<_>,
       tie: Map.get<_>(bits.pred, map.lft),
     },
-    1: case map {
+    i: case map {
       new: Maybe.none<_>,
       tie: Map.get<_>(bits.pred, map.rgt),
     }
@@ -32,15 +32,15 @@ Map.get<A: Type>(bits: Bits, map: Map(A)): Maybe(A)
 
 Map.set<A: Type>(bits: Bits, val: A, map: Map(A)): Map(A)
   case bits {
-    nil: case map {
+    e: case map {
       new: Map.tie<_>(Maybe.some<_>(val), Map.new<_>, Map.new<_>),
       tie: Map.tie<_>(Maybe.some<_>(val), map.lft, map.rgt)
     },
-    0: case map {
+    o: case map {
       new: Map.tie<_>(Maybe.none<_>, Map.set<_>(bits.pred, val, Map.new<_>), Map.new<_>),
       tie: Map.tie<_>(map.val, Map.set<_>(bits.pred, val, map.lft), map.rgt)
     },
-    1: case map {
+    i: case map {
       new: Map.tie<_>(Maybe.none<_>, Map.new<_>, Map.set<_>(bits.pred, val, Map.new<_>)),
       tie: Map.tie<_>(map.val, map.lft, Map.set<_>(bits.pred, val, map.rgt))
     }
@@ -50,9 +50,9 @@ Map.delete<A: Type>(key: Bits, map: Map(A)): Map(A)
   case map {
     new: Map.new<_>,
     tie: case key {
-      nil: Map.tie<_>(Maybe.none<_>, map.lft, map.rgt),
-       0 : Map.delete<_>(key.pred, map.lft),
-       1 : Map.delete<_>(key.pred, map.rgt)
+      e: Map.tie<_>(Maybe.none<_>, map.lft, map.rgt),
+      o: Map.delete<_>(key.pred, map.lft),
+      i: Map.delete<_>(key.pred, map.rgt)
     }
   }
 
@@ -65,7 +65,7 @@ Map.from_list<A: Type, B: Type>(f: A -> Bits, xs: List(Pair(A,B))): Map(B)
   }
 
 Map.to_list<A: Type>(xs: Map(A)): List(Pair(Bits,A))
-  List.reverse<_>(Map.to_list.go<_>(xs, Bits.nil, List.nil<_>))
+  List.reverse<_>(Map.to_list.go<_>(xs, Bits.e, List.nil<_>))
 
 Map.to_list.go<A: Type>(xs: Map(A), key: Bits, list: List(Pair(Bits,A))): List(Pair(Bits,A))
   case xs {
@@ -76,13 +76,13 @@ Map.to_list.go<A: Type>(xs: Map(A), key: Bits, list: List(Pair(Bits,A))): List(P
         none: list,
         some: List.cons<_>(Pair.new<_,_>(Bits.reverse(key), xs.val.value), list),
       };
-      let list1 = Map.to_list.go<_>(xs.lft, Bits.0(key), list0);
-      let list2 = Map.to_list.go<_>(xs.rgt, Bits.1(key), list1);
+      let list1 = Map.to_list.go<_>(xs.lft, Bits.o(key), list0);
+      let list2 = Map.to_list.go<_>(xs.rgt, Bits.i(key), list1);
       list2
   }
 
 Map.keys<A: Type>(xs: Map(A)): List(Bits)
-  List.reverse<_>(Map.keys.go<_>(xs, Bits.nil, List.nil<_>))
+  List.reverse<_>(Map.keys.go<_>(xs, Bits.e, List.nil<_>))
 
 Map.keys.go<A: Type>(xs: Map(A), key: Bits, list: List(Bits)): List(Bits)
   case xs {
@@ -90,8 +90,8 @@ Map.keys.go<A: Type>(xs: Map(A), key: Bits, list: List(Bits)): List(Bits)
       list,
     tie: 
       let list0 = case xs.val { none: list, some: List.cons<_>(Bits.reverse(key), list) };
-      let list1 = Map.keys.go<_>(xs.lft, Bits.0(key), list0);
-      let list2 = Map.keys.go<_>(xs.rgt, Bits.1(key), list1);
+      let list1 = Map.keys.go<_>(xs.lft, Bits.o(key), list0);
+      let list2 = Map.keys.go<_>(xs.rgt, Bits.i(key), list1);
       list2
   }
 
