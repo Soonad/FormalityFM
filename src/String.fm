@@ -359,14 +359,11 @@ String.span(f: Char -> Bool, xs: String): Pair(String,String)
   case xs{
     nil : Pair.new<_,_>(String.nil,String.nil)
     cons: case f(xs.head){
-        true : 
-          // get y z = String.span(f,xs.tail)
-          let span = String.span(f,xs.tail)
-          case span{
-            new: let y = span.fst
-              let z = span.snd
-            Pair.new<_,_>(String.cons(xs.head,y),z)
-          }
+        true :
+          open String.span(f,xs.tail) as span 
+          let y = span.fst
+          let z = span.snd
+          Pair.new<_,_>(String.cons(xs.head,y),z)
         false: Pair.new<_,_>(String.nil,xs)
       }
   }

@@ -12,15 +12,13 @@ Buffer32.alloc(depth: Nat): Buffer32
 // Buffer32.get(idx: U32, buf: Buffer32): U32
 //   // TODO: get dep arr = buf
 //   // TODO: get wrd = idx
-//   case buf {
-//     new: let dep = buf.depth
-//       let arr = buf.array
-//       case idx{
-//         new: let wrd = idx.value
-//           let idx = Word.trim<32>(dep, wrd)
-//           Array.get<U32, dep>(idx, arr)
-//     }
-//   }
+//   open buf
+//   let dep = buf.depth
+//   let arr = buf.array
+//   open idx
+//   let wrd = idx.value
+//   let idx = Word.trim<32>(dep, wrd)
+//   Array.get<U32, dep>(idx, arr)
   
 
 // Converts a hex string into a Buffer32.

@@ -296,9 +296,9 @@ List.split_at<A: Type>(n : Nat, xs: List(A)) : Pair(List(A),List(A))
     nil : { List.nil<_>, List.nil<_> },
     cons: case n {
       zero: { List.nil<_>, xs },
-      succ: case List.split_at<_>(n.pred, xs.tail) as res {
-        new: { List.cons<_>(xs.head, res.fst), res.snd }
-      }
+      succ: 
+        open List.split_at<_>(n.pred, xs.tail) as res
+        { List.cons<_>(xs.head, res.fst), res.snd }
     }
   }
 
@@ -399,9 +399,8 @@ List.insert_sort_nat(ns: List(Nat)): List(Nat)
   List.foldr<_,_>(List.nil<_>, List.insert_sort_nat.aux, ns)
 
 List.insert_sort_nat.aux(n: Nat, ns: List(Nat)): List(Nat)
-  case List.span<_>(Nat.lte(n), ns) as spanned {
-    new: List.concat<_>(spanned.fst, List.cons<_>(n, spanned.snd))
-  }
+  open List.span<_>(Nat.lte(n), ns) as spanned
+  List.concat<_>(spanned.fst, List.cons<_>(n, spanned.snd))
 
 
 List.span<A: Type>(f: A -> Bool, xs: List(A)): Pair(List(A),List(A))
@@ -409,11 +408,8 @@ List.span<A: Type>(f: A -> Bool, xs: List(A)): Pair(List(A),List(A))
     nil : {List.nil<_>, List.nil<_>},
     cons: case f(xs.head) {
       true: 
-        let spanned = List.span<_>(f, xs.tail)
-        case spanned {
-          new: { List.cons<_>(xs.head, spanned.fst), spanned.snd }
-        },
-
+        open List.span<_>(f, xs.tail) as spanned
+        { List.cons<_>(xs.head, spanned.fst), spanned.snd }
       false: { List.nil<_>, xs } 
     }
   }
@@ -667,9 +663,9 @@ List.unfoldr<A: Type, B: Type>(f: A -> Maybe(Pair(A,B)), a: A): List(B)
 List.unfoldr.go<A: Type, B: Type>(f: A -> Maybe(Pair(A,B)), a: A, bs: List(B)): List(B)
   case f(a) as res {
     none: List.nil<B>,
-    some: case res.value as pair {
-      new: List.unfoldr.go<A,B>(f, pair.fst, List.cons<B>(pair.snd, bs))
-    }
+    some: 
+      open res.value as pair
+      List.unfoldr.go<A,B>(f, pair.fst, List.cons<B>(pair.snd, bs))
   }
 
 // Given two lists `xs` and `ys`, applies `f(xs[i],ys[i])` for all `i`.

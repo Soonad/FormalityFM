@@ -59,15 +59,10 @@ CList.from_list<A: Type>(as: List(A)): CList(A)
     cons: 
       let len = List.length<_>(as)
       let mid = Nat.div(len, 2)
-      let spl = List.split_at<_>(mid, as.tail)
-      // TODO: update get
-      // get fst_half snd_half = spl
-      case spl{
-        new: 
-          let fst_half = spl.fst
-          let snd_half = spl.snd
-        CList.ring<_>(List.reverse<_>(snd_half), as.head, fst_half)
-      }
+      open List.split_at<_>(mid, as.tail) as spl
+      let fst_half = spl.fst
+      let snd_half = spl.snd
+      CList.ring<_>(List.reverse<_>(snd_half), as.head, fst_half)
   }
 
 CList.is_empty<A: Type>(cl: CList(A)): Bool

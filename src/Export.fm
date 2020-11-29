@@ -3,9 +3,8 @@ type Export {
 }
 
 Export.T(ex: Export): Type
-  case ex{
-    new: ex.T
-  }
+  open ex
+  ex.T
 
 Export.value(ex: Export): Export.T(ex)
   case ex{

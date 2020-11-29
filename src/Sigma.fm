@@ -3,9 +3,8 @@ type Sigma (A: Type) (B: A -> Type) {
 }
 
 Sigma.fst<A: Type, B: A -> Type>(sig: Sigma(A, B)): A
-  case sig {
-    new: sig.fst
-  }
+  open sig
+  sig.fst
 
 Sigma.snd<A: Type, B: A -> Type>(sig: Sigma(A, B)): B(Sigma.fst<A,B>(sig))
   case sig {

@@ -7,6 +7,5 @@ type Functor<F: Type -> Type> {
 }
 
 Functor.map<F: Type -> Type>(f: Functor(F)): <A: Type, B: Type> -> (A -> B) -> F(A) -> F(B)
-  case f {
-    new: f.map
-  }
+  open f
+  f.map

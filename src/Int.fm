@@ -15,12 +15,9 @@ Int.new(x: Nat, y: Nat): Int
   } : P(Int.new(x, y))
 
 Int.add(a: Int, b: Int): Int
-  // get a.x a.y = a
-  case a {
-    new: case b {
-        new: Int.new(Nat.add(a.x, b.x), Nat.add(a.y, b.y))
-      }
-  }
+  open a
+  open b
+  Int.new(Nat.add(a.x, b.x), Nat.add(a.y, b.y))
   
 
 Int.0: Int
@@ -30,18 +27,13 @@ Int.1: Int
   Int.from_nat(1)
 
 Int.cmp(a: Int, b: Int): Cmp
-  // get a.x a.y = a
-  case a {
-    new: case b {
-      new: Nat.cmp(Nat.add(a.x, b.y), Nat.add(b.x, a.y))
-    }
-  }
+  open a
+  open b
+  Nat.cmp(Nat.add(a.x, b.y), Nat.add(b.x, a.y))
 
 Int.div_nat(a: Int, n: Nat): Int
-  // get a.x a.y = a
-  case a {
-    new: Int.new(Nat.div(a.x, n), Nat.div(a.y, n))
-  }
+  open a
+  Int.new(Nat.div(a.x, n), Nat.div(a.y, n))
 
 Int.eql(a: Int, b: Int): Bool
   case Int.cmp(a, b) {
@@ -54,27 +46,19 @@ Int.from_nat(n: Nat): Int
   Int.new(n, 0)
 
 Int.mod_nat(a: Int, n: Nat): Nat
-  // get a.x a.y = a
-  case a {
-    new: 
-      let b = Nat.mod(a.y, n)
-      let sum = Nat.add(a.x, Nat.sub(n, b))
-      Nat.mod(sum, n)
-  }
+  open a
+  let b = Nat.mod(a.y, n)
+  let sum = Nat.add(a.x, Nat.sub(n, b))
+  Nat.mod(sum, n)
 
 Int.mul(a: Int, b: Int): Int
-  // get a.x a.y = a
-  case a{
-    new: case b {
-      new: Int.new(Nat.add(Nat.mul(a.x, b.x), Nat.mul(a.y, b.y)), Nat.add(Nat.mul(a.x, b.y), Nat.mul(a.y, b.x)))
-    }
-  }
+  open a
+  open b
+  Int.new(Nat.add(Nat.mul(a.x, b.x), Nat.mul(a.y, b.y)), Nat.add(Nat.mul(a.x, b.y), Nat.mul(a.y, b.x)))
   
 Int.neg(a: Int): Int
-  // get a.x a.y = a
-  case a{
-    new: Int.new(a.y, a.x)
-  }
+  open a
+  Int.new(a.y, a.x)
  
 // Int.parse_decimal(str: String): Int
 //   case str {
@@ -102,22 +86,17 @@ Int.sub(a: Int, b: Int): Int
 
 // true is negative, false otherwise
 Int.to_nat(a: Int): Pair(Bool, Nat)
-  // get a.x a.y = a
-  case a {
-    new: case a.y {
-      zero: Pair.new<_,_>(Bool.false, a.x),
-      succ: Pair.new<_,_>(Bool.true, a.y),
-    }
+  open a
+  case a.y {
+    zero: Pair.new<_,_>(Bool.false, a.x),
+    succ: Pair.new<_,_>(Bool.true, a.y),
   }
   
 
 Int.to_string_base(base: Nat, a: Int): String
-  // get a.x a.y = a
-  case a {
-    new: case a.y {
-      zero: Nat.to_string_base(base, a.x),
-      succ: String.cons('-', Nat.to_string_base(base, a.y)),
-    }
+  open a
+  case a.y {
+    zero: Nat.to_string_base(base, a.x),
+    succ: String.cons('-', Nat.to_string_base(base, a.y)),
   }
-  
 

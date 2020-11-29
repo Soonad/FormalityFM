@@ -129,7 +129,7 @@ Map.disj<A: Type>(a: Map(A), b: Map(A)): Bool
 // Returns the element stored at a given key and a copy of the map.
 // Map.lookup<A: Type>(bits: Bits, val: A, map: Map(A)): Pair(A, Map(A))
 //   case bits {
-//     nil: case map {
+//     e: case map {
 //       new: 
 //         let map = Map.tie<A>(Maybe.some<A>(val), Map.new<A>, Map.new<A>)
 //         Pair.new<A, Map(A)>(val, map),
@@ -138,7 +138,7 @@ Map.disj<A: Type>(a: Map(A), b: Map(A)): Bool
 //         let map = Map.tie<A>(Maybe.some<A>(value), map.lft, map.rgt)
 //         Pair.new<A, Map(A)>(value, map),
 //       },
-//     0: case map {
+//     o: case map {
 //       new:
 //         // get p.fst p.snd = Map.lookup<A>(bits.pred, val, Map.new<A>)
 //         let p = Map.lookup<A>(bits.pred, val, Map.new<A>)
@@ -152,7 +152,7 @@ Map.disj<A: Type>(a: Map(A), b: Map(A)): Bool
 //           new: Pair.new<A, Map(A)>(p.fst, Map.tie<A>(map.val, p.snd, map.rgt))
 //         }
 //     },
-//     1: case map {
+//     i: case map {
 //       new:
 //         // get p.fst p.snd = Map.lookup<A>(bits.pred, val, Map.new<A>)
 //         let p = Map.lookup<A>(bits.pred, val, Map.new<A>)
@@ -242,7 +242,7 @@ Map.merge.go<A: Type,B: Type,C: Type>(
 // TODO: use `with` to make this function linear again.
 Map.query<A: Type>(cpy: A -> Pair(A, A), bits: Bits, map: Map(A)): Pair(Map(A), Maybe(A))
   case bits {
-  nil: case map {
+  e: case map {
     new: 
       let map = Map.new<_>
       let val = Maybe.none<_>
@@ -260,7 +260,7 @@ Map.query<A: Type>(cpy: A -> Pair(A, A), bits: Bits, map: Map(A)): Pair(Map(A), 
       }
     }
   },
-  0: case map {
+  o: case map {
     new:
       let map = Map.new<_>
       let val = Maybe.none<_>
@@ -272,7 +272,7 @@ Map.query<A: Type>(cpy: A -> Pair(A, A), bits: Bits, map: Map(A)): Pair(Map(A), 
         Pair.new<_,_>(map, val)
     }
   },
-  1: case map {
+  i: case map {
     new: 
       let map = Map.new<_>
       let val = Maybe.none<_>

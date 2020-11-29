@@ -3,8 +3,7 @@ type Newtype<A: Type>      ~ (tag: String) {
 }
 
 Newtype.elim<A: Type, tag: String>(x: Newtype(A, tag)): A
-  case x {
-    new: x.val
-  }
+  open x 
+  x.val
 
 
