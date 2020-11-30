@@ -4,22 +4,32 @@ cabal-version:       >=1.10
 
 name:                Formality
 version:             0.1.0.0
-description:         A modern proof language
+synopsis:            A modern proof language
+description:  
+  Formality is an efficient proof language designed to be fast, secure, portable 
+  and user-friendly. 
 license:             MIT
 license-file:        LICENSE
 author:              Victor Maia
 maintainer:          srvictormaia@gmail.com
 build-type:          Simple
+category:            Development, Formal Languages, LambdaCalculus
+extra-source-files:  README.md
 
 executable fmhs
   hs-source-dirs:      src
   main-is:             Main.hs
   build-depends:       base >=3 && <5
   default-language:    Haskell2010
+  other-modules:       FormalityInternal
 
 Library
   hs-source-dirs:      src
-  Build-Depends:       base >= 3 && < 5
-  Exposed-modules:     Formality
-  Other-modules:       FormalityInternal
+  build-Depends:       base >=3 && <5
+  exposed-modules:     Formality
+  other-modules:       FormalityInternal
   ghc-options:         -Wall
+
+source-repository head
+  type:     git
+  location: https://github.com/moonad/FormalityFM.git
