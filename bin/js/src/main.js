@@ -27,6 +27,7 @@ if (!process.argv[2] || process.argv[2] === "--help" || process.argv[2] === "-h"
   process.exit();
 }
 
+
 (async () => {
   var name = process.argv[2];
 
@@ -42,7 +43,7 @@ if (!process.argv[2] || process.argv[2] === "--help" || process.argv[2] === "-h"
       console.log(fmc_to_js.compile(fmcc, name, {module}));
     } catch (e) {
       console.log("Compilation error.");
-      console.log(e);
+      //console.log(e);
     }
 
   // JavaScript execution
@@ -57,7 +58,7 @@ if (!process.argv[2] || process.argv[2] === "--help" || process.argv[2] === "-h"
       fs.unlinkSync(js_path);
     } catch (e) {
       console.log("Compilation error.");
-      console.log(e);
+      //console.log(e);
     }
 
   // Haskell compilation
@@ -68,7 +69,7 @@ if (!process.argv[2] || process.argv[2] === "--help" || process.argv[2] === "-h"
       console.log(fmc_to_hs.compile(fmcc, name, {module}));
     } catch (e) {
       console.log("Compilation error.");
-      console.log(e);
+      //console.log(e);
     }
 
   // Type-Checking

@@ -66,13 +66,9 @@ List.is_empty<A: Type>(list: List(A)): Bool
 
 // Computes the length of the list.
 List.length<A: Type>(xs: List(A)): Nat
-  List.length.go<_>(xs, 0)
-
-// Computes the length of the list.
-List.length.go<A: Type>(xs: List(A), n: Nat): Nat
   case xs {
-    nil : n,
-    cons: List.length.go<A>(xs.tail, Nat.succ(n))
+    nil: 0,
+    cons: Nat.succ(List.length<A>(xs.tail)),
   }
 
 // A range of nats

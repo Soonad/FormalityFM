@@ -2395,6 +2395,32 @@ Fm.Parser.forin: Parser(Fm.Term)
     return Fm.Term.ori(orig, term);
   }
 
+// Parses a for-in expression, second style
+Fm.Parser.forin2: Parser(Fm.Term)
+  do Parser {
+    var init = Fm.Parser.init;
+    Fm.Parser.text("for ");
+    var elem = Fm.Parser.name1;
+    Fm.Parser.text("in");
+    var list = Fm.Parser.term;
+    Fm.Parser.text(":");
+    var name = Fm.Parser.name1;
+    Fm.Parser.text("=");
+    var loop = Fm.Parser.term;
+    Parser.maybe<_>(Fm.Parser.text(";"));
+    var body = Fm.Parser.term;
+    var orig = Fm.Parser.stop(init);
+    let term = Fm.Term.ref("List.for");
+    let term = Fm.Term.app(term, Fm.Term.hol(Bits.e));
+    let term = Fm.Term.app(term, list);
+    let term = Fm.Term.app(term, Fm.Term.hol(Bits.e));
+    let term = Fm.Term.app(term, Fm.Term.ref(name));
+    let lamb = Fm.Term.lam(elem, (i) Fm.Term.lam(name, (x) loop));
+    let term = Fm.Term.app(term, lamb);
+    let term = Fm.Term.let(name, term, (x) body);
+    return Fm.Term.ori(orig, term);
+  }
+
 // Parses a let-for-in expression
 Fm.Parser.letforin: Parser(Fm.Term)
   do Parser {
@@ -2719,6 +2745,38 @@ Fm.Parser.arrow(init: Nat, xtyp: Fm.Term): Parser(Fm.Term)
     return Fm.Term.ori(orig, Fm.Term.all(Bool.false, "", "", xtyp, (s,x) body));
   }
 
+// Parses an operation: @x + y@
+Fm.Parser.op(sym: String, ref: String, init: Nat, val0: Fm.Term): Parser(Fm.Term)
+  do Parser {
+    Fm.Parser.text(sym);
+    var val1 = Fm.Parser.term;
+    var orig = Fm.Parser.stop(init);
+    let term = Fm.Term.ref(ref);
+    let term = Fm.Term.app(term, val0);
+    let term = Fm.Term.app(term, val1);
+    return Fm.Term.ori(orig, term);
+  }
+
+// Parses an addition: @x + y@
+Fm.Parser.add: Nat -> Fm.Term -> Parser(Fm.Term)
+  Fm.Parser.op("+", "Nat.add")
+
+// Parses a subtraction: @x - y@
+Fm.Parser.sub: Nat -> Fm.Term -> Parser(Fm.Term)
+  Fm.Parser.op("+", "Nat.add")
+
+// Parses a multiplication: @x * y@
+Fm.Parser.mul: Nat -> Fm.Term -> Parser(Fm.Term)
+  Fm.Parser.op("*", "Nat.mul")
+
+// Parses a division: @x / y@
+Fm.Parser.div: Nat -> Fm.Term -> Parser(Fm.Term)
+  Fm.Parser.op("/", "Nat.div")
+
+// Parses a modulus: @x % y@
+Fm.Parser.mod: Nat -> Fm.Term -> Parser(Fm.Term)
+  Fm.Parser.op("%", "Nat.mod")
+
 // Parses a list conser: @head & tail@
 Fm.Parser.cons(init: Nat, head: Fm.Term): Parser(Fm.Term)
   do Parser {
@@ -2822,6 +2880,7 @@ Fm.Parser.term: Parser(Fm.Term)
       Fm.Parser.list,
       Fm.Parser.log,
       Fm.Parser.forin,
+      Fm.Parser.forin2,
       Fm.Parser.do,
       Fm.Parser.case,
       Fm.Parser.open,
@@ -2840,6 +2899,11 @@ Fm.Parser.suffix(init: Nat, term: Fm.Term): Parser(Fm.Term)
     Fm.Parser.application(init, term),
     Fm.Parser.application.erased(init, term),
     Fm.Parser.arrow(init, term),
+    Fm.Parser.add(init, term),
+    Fm.Parser.sub(init, term),
+    Fm.Parser.mul(init, term),
+    Fm.Parser.div(init, term),
+    Fm.Parser.mod(init, term),
     Fm.Parser.cons(init, term),
     Fm.Parser.concat(init, term),
     Fm.Parser.string_concat(init, term),
