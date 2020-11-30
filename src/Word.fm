@@ -21,11 +21,54 @@ Word.from_bits(size: Nat, bits: Bits): Word(size)
     } : Word(Nat.succ(size.pred))
   } : Word(size)
 
+Word.from_nat(size: Nat, n: Nat): Word(size)
+  Nat.apply<Word(size)>(n, Word.inc<size>, Word.zero(size))
+
+// // Converts a Word to a Nat
+// Word.to_nat<size: Nat>(word: Word(size)): Nat
+//   Word.fold<()Nat,size>(0, <_> Nat.mul(2), <_> (x) Nat.succ(Nat.mul(2, x)), word)
+
 Word.zero(size: Nat): Word(size)
   case size {
     zero: Word.e,
     succ: Word.o<size.pred>(Word.zero(size.pred))
   } : Word(size)
+
+Word.nat_log2<size: Nat>(word: Word(size)): Nat
+  Word.nat_log2.go<size>(word, 0, 0)
+
+Word.nat_log2.go<size: Nat>(word: Word(size), c: Nat, n: Nat): Nat
+  case word {
+    e: n
+    o : Word.nat_log2.go<word.size>(word.pred, Nat.succ(c), n)
+    i : Word.nat_log2.go<word.size>(word.pred, Nat.succ(c), c)
+  }
+
+Word.neg.aux<size: Nat>(word: Word(size), inc: Bool): Word(size)
+  case word {
+    e: Word.e,
+    o : case inc {
+      true : Word.o<word.size>(Word.neg.aux<word.size>(word.pred, Bool.true)),
+      false: Word.i<word.size>(Word.neg.aux<word.size>(word.pred, Bool.false))
+    }
+    i : case inc {
+      true : Word.i<word.size>(Word.neg.aux<word.size>(word.pred, Bool.false)),
+      false: Word.o<word.size>(Word.neg.aux<word.size>(word.pred, Bool.false))
+    }
+  } : Word(word.size)
+
+Word.neg<size: Nat>(word: Word(size)): Word(size)
+  case word {
+    e: Word.e,
+     o : Word.o<word.size>(Word.neg.aux<word.size>(word.pred, Bool.true)),
+     i : Word.i<word.size>(Word.neg.aux<word.size>(word.pred, Bool.false))
+  } : Word(word.size)
+
+Word.reverse<size: Nat>(word: Word(size)): Word(size)
+  def nil = Word.e
+  def w0  = <size> (rev) Word.o<size>(rev)
+  def w1  = <size> (rev) Word.i<size>(rev)
+  Word.foldl<Word, size>(nil, w0, w1, word)
 
 Word.cmp.go<size: Nat>(a: Word(size), b: Word(size), c: Cmp): Cmp
   case a with b : Word(a.size) = b {
@@ -161,6 +204,21 @@ Word.inc<size: Nat>(word: Word(size)): Word(size)
     i: Word.o<word.size>(Word.inc<word.size>(word.pred))
   } : Word(word.size)
 
+Word.pred<size: Nat>(word: Word(Nat.succ(size))): Word(size)
+  case word {
+    e: Word.e,
+     o : word.pred,
+     i : word.pred
+  } : Word(Nat.pred(word.size))
+
+Word.drop<size: Nat>(n: Nat, word: Word(Nat.add(n, size))): Word(size)
+  case n with word: Word(Nat.add(n, size)) = word {
+    zero: word,
+    succ:
+      let word.pred = Word.pred<Nat.add(n.pred, size)>(word)
+      Word.drop<size>(n.pred, word.pred)
+  } : Word(size)
+
 // a + b
 Word.add<size: Nat>(a: Word(size), b: Word(size)): Word(size)
   Word.adder<size>(a)(b)(Bool.false)
@@ -224,3 +282,15 @@ Word.pow<size: Nat>(a: Word(size), b: Word(size)): Word(size)
 // TODO bitwise XOR between two words
 Word.xor<size: Nat>(a: Word(size), b: Word(size)): Word(size)
   Word.xor<size>(a, b)
+
+// Converts a Word to a Nat
+// Word.to_nat<size: Nat>(word: Word(size)): Nat
+//   Word.fold<()Nat,size>(0, <_> Nat.mul(2), <_> (x) Nat.succ(Nat.mul(2, x)), word)
+
+// TODO Bitwise-shifts a word left
+Word.shift_left: <size: Nat> -> Nat -> Word(size) -> Word(size)
+  Word.shift_left
+
+// TODO Bitwise-shifts a word right
+Word.shift_right: <size: Nat> -> Nat -> Word(size) -> Word(size)
+  Word.shift_right

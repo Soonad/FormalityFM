@@ -122,8 +122,8 @@ Parser.until1<V: Type>(cond: Parser(Unit), parser: Parser(V)): Parser(List(V))
 // Parses an optional
 Parser.maybe<V: Type>(parse: Parser(V)): Parser(Maybe(V))
   (idx,code) case parse(idx,code) as reply {
-    error: Parser.Reply.value<Maybe(V)>(idx, code, Maybe.none<V>),
-    value: Parser.Reply.value<Maybe(V)>(reply.idx, reply.code, Maybe.some<V>(reply.val)),
+    error: Parser.Reply.value<Maybe(V)>(idx, code, Maybe.none<V>)
+    value: Parser.Reply.value<Maybe(V)>(reply.idx, reply.code, Maybe.some<V>(reply.val))
   }
 
 Parser.ErrorAt.combine(
@@ -134,11 +134,9 @@ Parser.ErrorAt.combine(
     none: b,
     some: case b {
       none: a,
-      some: case a.value {
-        new: case b.value {
-          new: if Nat.gtn(a.value.idx, b.value.idx) then a else b
-        }
-      }
+      some: open a.value
+        open b.value
+        if Nat.gtn(a.value.idx, b.value.idx) then a else b
     }
   }
 
@@ -147,10 +145,9 @@ Parser.first_of.go<A: Type>(pars: List(Parser(A)), err: Maybe(Parser.ErrorAt)): 
   (idx,code) 
     case pars {
       nil: case err {
-        none: Parser.Reply.error<_>(idx, code, "No parse."),
-        some: case err.value {
-          new: Parser.Reply.error<_>(err.value.idx, err.value.code, err.value.err),
-        }
+        none: Parser.Reply.error<_>(idx, code, "No parse.")
+        some: open err.value
+          Parser.Reply.error<_>(err.value.idx, err.value.code, err.value.err)
       },
       cons:
         let parsed = pars.head(idx, code);
